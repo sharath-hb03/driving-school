@@ -7,6 +7,7 @@ const PUBLIC_PATHS = new Set([
   '/api/auth/me',
   '/api/health',
   '/api/manifest',
+  '/api/notify/cron',
 ])
 const SUPER_ADMIN_PREFIX = '/api/super-admin/'
 const PORTAL_PREFIX = '/api/portal/'

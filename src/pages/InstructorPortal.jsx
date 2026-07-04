@@ -6,7 +6,6 @@ import { useApi } from '../lib/useApi'
 import { api } from '../lib/api'
 import { fmtDate, fmtClock, formatWorkDays, inr } from '../lib/format'
 import { PageLoader, EmptyState, Badge, Spinner } from '../components/ui'
-import { isConfigured, promptNotifications, getSubscriptionId, getSubscriptionState } from '../lib/onesignal'
 import WeekSchedule from '../components/WeekSchedule'
 import Modal from '../components/Modal'
 
@@ -40,20 +39,6 @@ export default function InstructorPortal() {
     setSelectedStudentId(studentId)
     setStudentModalOpen(true)
   }
-  useEffect(() => {
-    if (!isConfigured()) return
-    getSubscriptionState().then(async (state) => {
-      if (state.optedIn && state.id) {
-        await api.post('/portal/push-subscribe', { subscription_id: state.id }).catch(() => {})
-      } else {
-        const perm = await promptNotifications()
-        if (perm === 'granted' || perm === true) {
-          const subId = await getSubscriptionId()
-          if (subId) await api.post('/portal/push-subscribe', { subscription_id: subId }).catch(() => {})
-        }
-      }
-    }).catch(() => {})
-  }, [])
 
   // The week calendar pulls fresh data each time so marks reflect instantly.
   const loadWeek = useCallback(

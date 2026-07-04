@@ -7,6 +7,10 @@ export async function sendPush(env, { heading, message, url, subscriptionIds }) 
     console.warn('[pushify] PUSHIFY_API_KEY not set — skipping push')
     return { sent: false, reason: 'PUSHIFY_API_KEY not configured' }
   }
+  if (apiKey === 'your-pushify-api-key-here') {
+    console.log(`[pushify mock] Sending push: [${heading}] "${message}" (to: ${subscriptionIds.join(', ')})`)
+    return { sent: true, mock: true }
+  }
   if (!subscriptionIds || subscriptionIds.length === 0) {
     return { sent: false, reason: 'No subscription IDs provided' }
   }

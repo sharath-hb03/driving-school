@@ -3,6 +3,7 @@
 // DELETE /api/students/:id
 import { ok, notFound, badRequest, readJson } from '../../_lib/utils.js'
 import { hashPassword } from '../../_lib/auth.js'
+import { sendPush } from '../../_lib/pushify.js'
 
 export async function onRequestGet(context) {
   const { env, params, data } = context
@@ -223,6 +224,61 @@ export async function onRequestPut(context) {
   if (!sets.length) return badRequest('Nothing to update')
   vals.push(params.id, sid)
   await env.DB.prepare(`UPDATE students SET ${sets.join(',')} WHERE id=? AND school_id=?`).bind(...vals).run()
+
+  // Notify student on license date or status changes
+  const pushifySub = student.pushify_sub
+  if (pushifySub && pushifySub !== 'null') {
+    try {
+      // 1. Learner's Licence (LL) test schedule change
+      const llDateChanged = 'll_test_date' in fields && fields.ll_test_date !== student.ll_test_date
+      const llTimeChanged = 'll_test_time' in fields && fields.ll_test_time !== student.ll_test_time
+      if ((llDateChanged || llTimeChanged) && fields.ll_test_date) {
+        const dateVal = fields.ll_test_date
+        const timeVal = fields.ll_test_time || student.ll_test_time || ''
+        await sendPush(env, {
+          heading: "Learner's Licence Test",
+          message: `Your Learner's Licence test has been scheduled for ${dateVal}${timeVal ? ` at ${timeVal}` : ''}.`,
+          subscriptionIds: [pushifySub]
+        })
+      }
+
+      // 2. LL status change
+      const llStatusChanged = 'll_status' in fields && fields.ll_status !== student.ll_status
+      if (llStatusChanged && fields.ll_status) {
+        await sendPush(env, {
+          heading: "Learner's Licence Status",
+          message: `Your Learner's Licence test status is updated: ${fields.ll_status.toUpperCase()}.`,
+          subscriptionIds: [pushifySub]
+        })
+      }
+
+      // 3. Driving Licence (DL) test schedule change
+      const dlDateChanged = 'dl_test_date' in fields && fields.dl_test_date !== student.dl_test_date
+      const dlTimeChanged = 'dl_test_time' in fields && fields.dl_test_time !== student.dl_test_time
+      if ((dlDateChanged || dlTimeChanged) && fields.dl_test_date) {
+        const dateVal = fields.dl_test_date
+        const timeVal = fields.dl_test_time || student.dl_test_time || ''
+        await sendPush(env, {
+          heading: "Driving Licence Test",
+          message: `Your Driving Licence test has been scheduled for ${dateVal}${timeVal ? ` at ${timeVal}` : ''}.`,
+          subscriptionIds: [pushifySub]
+        })
+      }
+
+      // 4. DL status change
+      const dlStatusChanged = 'dl_status' in fields && fields.dl_status !== student.dl_status
+      if (dlStatusChanged && fields.dl_status) {
+        await sendPush(env, {
+          heading: "Driving Licence Status",
+          message: `Your Driving Licence test status is updated: ${fields.dl_status.toUpperCase()}.`,
+          subscriptionIds: [pushifySub]
+        })
+      }
+    } catch (err) {
+      console.error('[notify] Error sending student license update notification:', err)
+    }
+  }
+
   return ok({ updated: true })
 }
 

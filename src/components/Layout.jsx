@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, useNavigate, Link } from 'react-router-dom'
 import {
   LayoutDashboard, MessageCircle, Users, CalendarDays, Wallet,
@@ -7,6 +7,8 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './ui'
 import InstallButton from './InstallButton'
+import { isConfigured, promptNotifications, getSubscriptionId, getSubscriptionState } from '../lib/onesignal'
+import { api } from '../lib/api'
 
 const NAV = [
   { to: '/',           label: 'Dashboard',  icon: LayoutDashboard, end: true },
@@ -30,6 +32,21 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
 
   const doLogout = async () => { await logout(); navigate('/login') }
+
+  useEffect(() => {
+    if (!isConfigured()) return
+    getSubscriptionState().then(async (state) => {
+      if (state.optedIn && state.id) {
+        await api.post('/notify/subscribe', { subscription_id: state.id }).catch(() => {})
+      } else {
+        const perm = await promptNotifications()
+        if (perm === 'granted' || perm === true) {
+          const subId = await getSubscriptionId()
+          if (subId) await api.post('/notify/subscribe', { subscription_id: subId }).catch(() => {})
+        }
+      }
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen lg:flex">

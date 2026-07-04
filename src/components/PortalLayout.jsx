@@ -1,13 +1,31 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './ui'
 import InstallButton from './InstallButton'
+import { isConfigured, promptNotifications, getSubscriptionId, getSubscriptionState } from '../lib/onesignal'
+import { api } from '../lib/api'
 
 export default function PortalLayout({ children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const doLogout = async () => { await logout(); navigate('/login') }
+
+  useEffect(() => {
+    if (!isConfigured()) return
+    getSubscriptionState().then(async (state) => {
+      if (state.optedIn && state.id) {
+        await api.post('/portal/push-subscribe', { subscription_id: state.id }).catch(() => {})
+      } else {
+        const perm = await promptNotifications()
+        if (perm === 'granted' || perm === true) {
+          const subId = await getSubscriptionId()
+          if (subId) await api.post('/portal/push-subscribe', { subscription_id: subId }).catch(() => {})
+        }
+      }
+    }).catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen bg-slate-50">

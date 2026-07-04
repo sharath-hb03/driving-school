@@ -1,5 +1,6 @@
-// GET/POST /api/enquiries  (POST is public â€” no auth required)
+// GET/POST /api/enquiries  (POST is public — no auth required)
 import { ok, created, badRequest, readJson, requireFields, id } from '../../_lib/utils.js'
+import { sendPush } from '../../_lib/pushify.js'
 
 export async function onRequestGet(context) {
   const { env, data, request } = context
@@ -36,5 +37,26 @@ export async function onRequestPost(context) {
   await env.DB.prepare('INSERT INTO enquiries (id,school_id,name,phone,message,staff_notes,source) VALUES (?,?,?,?,?,?,?)')
     .bind(eId, sid, String(body.name).trim(), String(body.phone).trim(), body.message || null, notes, source).run()
   const enquiry = await env.DB.prepare('SELECT * FROM enquiries WHERE id=?').bind(eId).first()
+
+  // Notify admins of new lead
+  if (sid) {
+    try {
+      const { results: admins } = await env.DB.prepare(
+        "SELECT pushify_sub FROM users WHERE school_id = ? AND role = 'admin' AND pushify_sub IS NOT NULL"
+      ).bind(sid).all()
+      const adminSubs = (admins || []).map(r => r.pushify_sub).filter(Boolean)
+
+      if (adminSubs.length > 0) {
+        await sendPush(env, {
+          heading: 'New Enquiry Lead',
+          message: `New enquiry received from ${String(body.name).trim()} (${String(body.phone).trim()}): "${body.message || ''}"`,
+          subscriptionIds: adminSubs
+        })
+      }
+    } catch (err) {
+      console.error('[notify] Error sending new enquiry notification to admins:', err)
+    }
+  }
+
   return created({ enquiry })
 }

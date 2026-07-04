@@ -2,6 +2,7 @@
 // POST /api/classes  { student_id, instructor_id, vehicle_id, scheduled_at, duration_min, notes, slots[], dryRun }
 import { ok, created, badRequest, readJson, requireFields, id } from '../../_lib/utils.js'
 import { findBookingConflicts } from '../../_lib/schedule.js'
+import { sendPush } from '../../_lib/pushify.js'
 
 const SELECT = `
   SELECT c.*,
@@ -106,6 +107,47 @@ export async function onRequestPost(context) {
     const ph  = createdIds.map(() => '?').join(',')
     const res = await env.DB.prepare(`${SELECT} WHERE c.id IN (${ph}) ORDER BY c.scheduled_at ASC`).bind(...createdIds).all()
     classes = res.results || []
+  }
+
+  // Notify student and instructor about the booked classes
+  if (classes.length) {
+    try {
+      const student = await env.DB.prepare('SELECT name, pushify_sub FROM students WHERE id = ?').bind(body.student_id).first()
+      let instructor = null
+      if (body.instructor_id) {
+        instructor = await env.DB.prepare('SELECT name, pushify_sub FROM instructors WHERE id = ?').bind(body.instructor_id).first()
+      }
+
+      for (const c of classes) {
+        const timeStr = new Date(c.scheduled_at.includes('T') ? c.scheduled_at : c.scheduled_at.replace(' ', 'T')).toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+
+        if (student && student.pushify_sub && student.pushify_sub !== 'null') {
+          await sendPush(env, {
+            heading: 'Class Booked',
+            message: `A new driving class has been booked for you on ${timeStr}${instructor ? ` with instructor ${instructor.name}` : ''}.`,
+            subscriptionIds: [student.pushify_sub]
+          })
+        }
+
+        if (instructor && instructor.pushify_sub && instructor.pushify_sub !== 'null') {
+          await sendPush(env, {
+            heading: 'New Class Assigned',
+            message: `You have a new class scheduled with student ${student ? student.name : 'Student'} on ${timeStr}.`,
+            subscriptionIds: [instructor.pushify_sub]
+          })
+        }
+      }
+    } catch (err) {
+      console.error('[notify] Error sending booking notification:', err)
+    }
   }
 
   return created({ classes, class: classes[0] || null, skipped: conflicts })

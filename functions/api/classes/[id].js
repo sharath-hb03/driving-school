@@ -2,6 +2,7 @@
 import { ok, notFound, badRequest, readJson } from '../../_lib/utils.js'
 import { findBookingConflicts } from '../../_lib/schedule.js'
 import { maybeCompleteAndCertify } from '../../_lib/certificate.js'
+import { sendPush } from '../../_lib/pushify.js'
 
 const ALLOWED = ['instructor_id', 'vehicle_id', 'scheduled_at', 'duration_min', 'status', 'notes']
 
@@ -31,11 +32,17 @@ export async function onRequestPut(context) {
   for (const k of ALLOWED) { if (k in body) fields[k] = body[k] }
   if (!Object.keys(fields).length) return badRequest('Nothing to update')
 
+  let timeChanged = false
+  let originalTime = null
+
   // ── Conflict check when rescheduling or reassigning ─────────────────
   const touchesSchedule = ['scheduled_at', 'instructor_id', 'vehicle_id', 'duration_min'].some((k) => k in fields)
   if (touchesSchedule) {
     const current = await env.DB.prepare('SELECT * FROM classes WHERE id=? AND school_id=?').bind(params.id, sid).first()
     if (!current) return notFound('Class not found')
+
+    originalTime = current.scheduled_at
+    timeChanged = 'scheduled_at' in fields && fields.scheduled_at !== current.scheduled_at
 
     const merged = { ...current, ...fields }
     // Only check if the class isn't being cancelled
@@ -75,6 +82,55 @@ export async function onRequestPut(context) {
   // Auto-complete & auto-certify when attendance is marked
   if (fields.status === 'attended' && row.student_id) {
     await maybeCompleteAndCertify(env, row.student_id, sid, { issuedBy: `system` }).catch(() => {})
+  }
+
+  // Notify student and instructor about rescheduling
+  if (touchesSchedule && timeChanged && originalTime) {
+    try {
+      const student = await env.DB.prepare('SELECT pushify_sub FROM students WHERE id = ?').bind(row.student_id).first()
+      let instructor = null
+      if (row.instructor_id) {
+        instructor = await env.DB.prepare('SELECT pushify_sub FROM instructors WHERE id = ?').bind(row.instructor_id).first()
+      }
+
+      const newTimeStr = new Date(row.scheduled_at.includes('T') ? row.scheduled_at : row.scheduled_at.replace(' ', 'T')).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+
+      const oldTimeStr = new Date(originalTime.includes('T') ? originalTime : originalTime.replace(' ', 'T')).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+
+      if (student && student.pushify_sub && student.pushify_sub !== 'null') {
+        await sendPush(env, {
+          heading: 'Class Rescheduled',
+          message: `Your class on ${oldTimeStr} has been rescheduled to ${newTimeStr}${row.instructor_name ? ` with instructor ${row.instructor_name}` : ''}.`,
+          subscriptionIds: [student.pushify_sub]
+        })
+      }
+
+      if (instructor && instructor.pushify_sub && instructor.pushify_sub !== 'null') {
+        await sendPush(env, {
+          heading: 'Class Rescheduled',
+          message: `Your class with student ${row.student_name} has been rescheduled from ${oldTimeStr} to ${newTimeStr}.`,
+          subscriptionIds: [instructor.pushify_sub]
+        })
+      }
+    } catch (err) {
+      console.error('[notify] Error sending reschedule notification:', err)
+    }
   }
 
   return ok({ class: row })
