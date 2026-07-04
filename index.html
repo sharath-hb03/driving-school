@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#4f46e5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="DriveSchool" />
+    <meta name="description" content="Multi-tenant driving school management system — students, schedule, payments, certificates." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>DriveSchool Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Capture install prompt before React mounts so it's never missed -->
+    <script>
+      window.__pwaInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__pwaInstallPrompt = e;
+        // Notify any mounted React listeners
+        window.dispatchEvent(new Event('pwaInstallReady'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__pwaInstallPrompt = null;
+        window.__pwaInstalled = true;
+        window.dispatchEvent(new Event('pwaInstalled'));
+      });
+    </script>
+    <script>
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var slug   = params.get('school') || localStorage.getItem('dsms_school_slug');
+        if (slug) {
+          localStorage.setItem('dsms_school_slug', slug);
+          var link = document.querySelector('link[rel="manifest"]');
+          if (link) link.setAttribute('href', '/api/manifest?slug=' + encodeURIComponent(slug));
+          
+          var savedName = localStorage.getItem('dsms_school_name');
+          if (savedName) {
+            document.title = savedName;
+            var metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+            if (metaTitle) metaTitle.setAttribute('content', savedName);
+          }
+        }
+      })();
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

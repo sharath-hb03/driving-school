@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; font-family: 'Inter', sans-serif; }
+  body {
+    @apply bg-slate-50 text-slate-800 antialiased;
+    overscroll-behavior-y: none;
+  }
+  button, a { touch-action: manipulation; }
+  h1, h2, h3 { font-family: 'Outfit', 'Inter', sans-serif; }
+}
+
+@layer components {
+  .card { @apply rounded-2xl bg-white shadow-card border border-slate-100; }
+  .card-glass {
+    @apply rounded-2xl border border-white/20 bg-white/80 backdrop-blur-sm shadow-card;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold
+           transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-primary { @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-sm; }
+  .btn-ghost   { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
+  .btn-danger  { @apply btn bg-red-50 text-red-600 hover:bg-red-100; }
+  .btn-outline { @apply btn border border-brand-300 text-brand-700 hover:bg-brand-50; }
+  .input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-[15px]
+           text-slate-800 placeholder:text-slate-400 outline-none
+           focus:border-brand-500 focus:ring-2 focus:ring-brand-100 transition;
+  }
+  .label  { @apply mb-1.5 block text-sm font-medium text-slate-600; }
+  .chip   { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold; }
+  .nav-link {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600
+           hover:bg-slate-100 transition;
+  }
+  .nav-link-active { @apply bg-brand-50 text-brand-700; }
+  .stat-card {
+    @apply card flex items-center gap-3 p-4 transition active:scale-[.98];
+  }
+  .section-title {
+    @apply mb-2 px-1 text-xs font-bold uppercase tracking-wide text-slate-400;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.skeleton { @apply animate-pulse rounded-lg bg-slate-200/70; }
+
+/* Super admin gradient header */
+.sa-header {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
+}
+
+/* Smooth page transitions */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: fadeInUp .22s ease-out; }
+
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: .6; }
+  to   { transform: translateY(0);    opacity: 1;  }
+}

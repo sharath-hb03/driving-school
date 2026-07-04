@@ -1,0 +1,29 @@
+# Cloudflare Pages project — Multi-Tenant DSMS
+name = "dsms-mt"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dsms-mt-db"
+database_id = "be9fc3c7-cf73-4015-940d-5e3dc084d51d"
+
+# [[r2_buckets]]
+# binding = "FILES"
+# bucket_name = "dsms-mt-files"            # enable R2 in CF dashboard first, then uncomment
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "b21a7cacad554731b05c24ac85a5850e"
+
+[vars]
+APP_NAME            = "DriveSchool Manager"
+CLOUDINARY_CLOUD_NAME = "djm1pmd4u"
+LANDING_SCHOOL_SLUG = ""                 # slug of school to show on public landing page
+CERT_SIGNATORY      = ""                 # printed on certificates; falls back to generating user's name
+
+# Secrets — set with: wrangler pages secret put <NAME>
+#   AUTH_SECRET             — long random string for JWT signing (min 32 chars)
+#   PUSHIFY_API_KEY         — Pushify server Bearer key
+#   CLOUDINARY_API_KEY      — Cloudinary API key
+#   CLOUDINARY_API_SECRET   — Cloudinary API secret
