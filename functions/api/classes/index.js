@@ -2,7 +2,7 @@
 // POST /api/classes  { student_id, instructor_id, vehicle_id, scheduled_at, duration_min, notes, slots[], dryRun }
 import { ok, created, badRequest, readJson, requireFields, id } from '../../_lib/utils.js'
 import { findBookingConflicts } from '../../_lib/schedule.js'
-import { sendPush } from '../../_lib/pushify.js'
+import { sendPush } from '../../_lib/onesignal.js'
 
 const SELECT = `
   SELECT c.*,

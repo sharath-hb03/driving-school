@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { NavLink, useNavigate, Link } from 'react-router-dom'
 import {
   LayoutDashboard, MessageCircle, Users, CalendarDays, Wallet,
@@ -7,8 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './ui'
 import InstallButton from './InstallButton'
-import { isConfigured, promptNotifications, getSubscriptionId, getSubscriptionState } from '../lib/onesignal'
-import { api } from '../lib/api'
+import NotifyButton from './NotifyButton'
 
 const NAV = [
   { to: '/',           label: 'Dashboard',  icon: LayoutDashboard, end: true },
@@ -33,21 +32,6 @@ export default function Layout({ children }) {
 
   const doLogout = async () => { await logout(); navigate('/login') }
 
-  useEffect(() => {
-    if (!isConfigured()) return
-    getSubscriptionState().then(async (state) => {
-      if (state.optedIn && state.id) {
-        await api.post('/notify/subscribe', { subscription_id: state.id }).catch(() => {})
-      } else {
-        const perm = await promptNotifications()
-        if (perm === 'granted' || perm === true) {
-          const subId = await getSubscriptionId()
-          if (subId) await api.post('/notify/subscribe', { subscription_id: subId }).catch(() => {})
-        }
-      }
-    }).catch(() => {})
-  }, [])
-
   return (
     <div className="min-h-screen lg:flex">
       {/* Desktop sidebar */}
@@ -69,9 +53,10 @@ export default function Layout({ children }) {
             </NavLink>
           ))}
         </nav>
-        {/* Install button — desktop sidebar */}
-        <div className="px-2 pb-2">
+        {/* Install + notifications — desktop sidebar */}
+        <div className="space-y-2 px-2 pb-2">
           <InstallButton className="w-full justify-center" />
+          <NotifyButton className="w-full justify-center" />
         </div>
         <div className="mt-2 flex items-center gap-3 rounded-xl bg-slate-50 p-3">
           <Avatar name={user?.name} size={38} />
@@ -133,8 +118,9 @@ export default function Layout({ children }) {
                 className="flex flex-col items-center gap-2 rounded-2xl bg-red-50 p-4 text-center text-xs font-semibold text-red-600">
                 <LogOut className="h-6 w-6" />Sign out
               </button>
-              {/* Install button in More sheet */}
+              {/* Install + notifications in More sheet */}
               <InstallButton className="col-span-3 justify-center" />
+              <NotifyButton className="col-span-3 justify-center" />
             </div>
           </div>
         </div>

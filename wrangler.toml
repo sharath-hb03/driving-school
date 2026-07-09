@@ -21,9 +21,10 @@ APP_NAME            = "DriveSchool Manager"
 CLOUDINARY_CLOUD_NAME = "djm1pmd4u"
 LANDING_SCHOOL_SLUG = ""                 # slug of school to show on public landing page
 CERT_SIGNATORY      = ""                 # printed on certificates; falls back to generating user's name
+ONESIGNAL_APP_ID    = "c7e18aef-ab28-4252-a639-ddbc019d51d3"   # public OneSignal app id (matches VITE_ONESIGNAL_APP_ID)
 
 # Secrets — set with: wrangler pages secret put <NAME>
 #   AUTH_SECRET             — long random string for JWT signing (min 32 chars)
-#   PUSHIFY_API_KEY         — Pushify server Bearer key
+#   ONESIGNAL_REST_API_KEY  — OneSignal REST API key (Dashboard → Settings → Keys & IDs)
 #   CLOUDINARY_API_KEY      — Cloudinary API key
 #   CLOUDINARY_API_SECRET   — Cloudinary API secret

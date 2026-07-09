@@ -3,7 +3,7 @@
 // DELETE /api/students/:id
 import { ok, notFound, badRequest, readJson } from '../../_lib/utils.js'
 import { hashPassword } from '../../_lib/auth.js'
-import { sendPush } from '../../_lib/pushify.js'
+import { sendPush } from '../../_lib/onesignal.js'
 
 export async function onRequestGet(context) {
   const { env, params, data } = context

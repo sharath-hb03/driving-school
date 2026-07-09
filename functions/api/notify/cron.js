@@ -1,4 +1,4 @@
-import { sendPush } from '../../_lib/pushify.js'
+import { sendPush } from '../../_lib/onesignal.js'
 import { ok, unauthorized, badRequest } from '../../_lib/utils.js'
 
 function formatClassTime(date) {

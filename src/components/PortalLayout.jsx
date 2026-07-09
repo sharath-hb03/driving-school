@@ -1,31 +1,14 @@
-import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LogOut } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './ui'
 import InstallButton from './InstallButton'
-import { isConfigured, promptNotifications, getSubscriptionId, getSubscriptionState } from '../lib/onesignal'
-import { api } from '../lib/api'
+import NotifyButton from './NotifyButton'
 
 export default function PortalLayout({ children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const doLogout = async () => { await logout(); navigate('/login') }
-
-  useEffect(() => {
-    if (!isConfigured()) return
-    getSubscriptionState().then(async (state) => {
-      if (state.optedIn && state.id) {
-        await api.post('/portal/push-subscribe', { subscription_id: state.id }).catch(() => {})
-      } else {
-        const perm = await promptNotifications()
-        if (perm === 'granted' || perm === true) {
-          const subId = await getSubscriptionId()
-          if (subId) await api.post('/portal/push-subscribe', { subscription_id: subId }).catch(() => {})
-        }
-      }
-    }).catch(() => {})
-  }, [])
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -38,7 +21,8 @@ export default function PortalLayout({ children }) {
               <p className="truncate text-sm font-bold text-slate-800">{user?.name}</p>
               <p className="truncate text-xs capitalize text-slate-400">{user?.school_name || user?.role}</p>
             </div>
-            <div className="hidden sm:block">
+            <div className="hidden items-center gap-2 sm:flex">
+              <NotifyButton className="shrink-0" />
               <InstallButton className="shrink-0" />
             </div>
             <button onClick={doLogout}
@@ -46,7 +30,10 @@ export default function PortalLayout({ children }) {
               <LogOut className="h-4 w-4" /> Sign out
             </button>
           </div>
-          <InstallButton className="mt-3 w-full justify-center sm:hidden" />
+          <div className="mt-3 flex flex-col gap-2 sm:hidden">
+            <InstallButton className="w-full justify-center" />
+            <NotifyButton className="w-full justify-center" />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-4"

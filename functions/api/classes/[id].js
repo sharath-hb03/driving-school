@@ -2,7 +2,7 @@
 import { ok, notFound, badRequest, readJson } from '../../_lib/utils.js'
 import { findBookingConflicts } from '../../_lib/schedule.js'
 import { maybeCompleteAndCertify } from '../../_lib/certificate.js'
-import { sendPush } from '../../_lib/pushify.js'
+import { sendPush } from '../../_lib/onesignal.js'
 
 const ALLOWED = ['instructor_id', 'vehicle_id', 'scheduled_at', 'duration_min', 'status', 'notes']
 

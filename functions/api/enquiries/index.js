@@ -1,6 +1,6 @@
 // GET/POST /api/enquiries  (POST is public — no auth required)
 import { ok, created, badRequest, readJson, requireFields, id } from '../../_lib/utils.js'
-import { sendPush } from '../../_lib/pushify.js'
+import { sendPush } from '../../_lib/onesignal.js'
 
 export async function onRequestGet(context) {
   const { env, data, request } = context

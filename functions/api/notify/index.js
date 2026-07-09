@@ -1,5 +1,5 @@
 // POST /api/notify  — send push notification to school staff or specific users
-import { sendPush } from '../../_lib/pushify.js'
+import { sendPush } from '../../_lib/onesignal.js'
 import { readJson, badRequest, ok } from '../../_lib/utils.js'
 
 export async function onRequestPost(context) {
