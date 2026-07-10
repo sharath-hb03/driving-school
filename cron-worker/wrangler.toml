@@ -1,0 +1,19 @@
+# Companion Worker: fires the DSMS reminder cron on a schedule.
+# Deployed separately from the Pages app (Pages Functions can't run cron triggers).
+#   Deploy: cd cron-worker && npx wrangler deploy
+#   Secret: npx wrangler secret put CRON_SECRET   (same value as the Pages CRON_SECRET)
+name = "dsms-mt-cron"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+
+# Cron-only Worker — no public HTTP route needed, so don't publish a workers.dev URL.
+workers_dev = false
+
+# Every 15 minutes — frequent enough for the 1-hour class reminder window.
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+CRON_TARGET_URL = "https://dsms-mt.pages.dev/api/notify/cron"
+# CRON_SECRET is a secret, not a var — set it with:
+#   npx wrangler secret put CRON_SECRET

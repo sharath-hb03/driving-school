@@ -1,9 +1,11 @@
 import { hashPassword } from '../../../_lib/auth.js'
-import { ok, badRequest, readJson } from '../../../_lib/utils.js'
+import { ok, badRequest, forbidden, readJson } from '../../../_lib/utils.js'
 
 export async function onRequestPut(context) {
   const { env, params, data, request } = context
   const sid = data.schoolId
+
+  if (data.user?.role !== 'admin') return forbidden('Only school admins can manage staff')
 
   const body = await readJson(request)
   if (!body || !body.password) {

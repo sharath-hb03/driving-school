@@ -1,5 +1,5 @@
 // GET /api/instructors/:id  PUT /api/instructors/:id  DELETE /api/instructors/:id
-import { ok, notFound, badRequest, readJson } from '../../_lib/utils.js'
+import { ok, notFound, badRequest, forbidden, readJson } from '../../_lib/utils.js'
 import { hashPassword } from '../../_lib/auth.js'
 
 export async function onRequestGet(context) {
@@ -42,6 +42,9 @@ export async function onRequestPut(context) {
   const sid = data.schoolId
   const body = await readJson(request)
   const { password, ...fields } = body
+  if (password && data.user?.role !== 'admin') {
+    return forbidden('Only school admins can reset instructor passwords')
+  }
   const allowed = ['name','phone','email','license_type','active','notes','work_days','work_start','work_end']
   const sets = []; const vals = []
   for (const k of allowed) { if (k in fields) { sets.push(`${k}=?`); vals.push(fields[k] ?? null) } }
@@ -54,6 +57,7 @@ export async function onRequestPut(context) {
 
 export async function onRequestDelete(context) {
   const { env, params, data } = context
+  if (data.user?.role !== 'admin') return forbidden('Only school admins can delete instructors')
   await env.DB.prepare('DELETE FROM instructors WHERE id=? AND school_id=?').bind(params.id, data.schoolId).run()
   return ok({ deleted: true })
 }

@@ -1,7 +1,7 @@
 // GET    /api/students/:id
 // PUT    /api/students/:id
 // DELETE /api/students/:id
-import { ok, notFound, badRequest, readJson } from '../../_lib/utils.js'
+import { ok, notFound, badRequest, forbidden, readJson } from '../../_lib/utils.js'
 import { hashPassword } from '../../_lib/auth.js'
 import { sendPush } from '../../_lib/onesignal.js'
 
@@ -200,6 +200,9 @@ export async function onRequestPut(context) {
   }
 
   const { password, ...fields } = body
+  if (password && data.user?.role !== 'admin') {
+    return forbidden('Only school admins can reset student passwords')
+  }
 
   const sets = []
   const vals = []
@@ -285,6 +288,7 @@ export async function onRequestPut(context) {
 export async function onRequestDelete(context) {
   const { env, params, data } = context
   const sid = data.schoolId
+  if (data.user?.role !== 'admin') return forbidden('Only school admins can delete students')
   await env.DB.prepare('DELETE FROM students WHERE id=? AND school_id=?').bind(params.id, sid).run()
   return ok({ deleted: true })
 }

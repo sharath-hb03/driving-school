@@ -106,5 +106,9 @@ export const clearCookie = () => 'session=; Path=/; HttpOnly; Secure; SameSite=L
 export async function getUser(request, env) {
   const token = parseCookies(request).session
   if (!token) return null
-  return verifySession(token, env.AUTH_SECRET || 'dev-insecure-secret-change-me')
+  if (!env.AUTH_SECRET) {
+    console.error('[auth] AUTH_SECRET is not configured — refusing to validate sessions')
+    return null
+  }
+  return verifySession(token, env.AUTH_SECRET)
 }

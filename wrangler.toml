@@ -25,6 +25,8 @@ ONESIGNAL_APP_ID    = "c7e18aef-ab28-4252-a639-ddbc019d51d3"   # public OneSigna
 
 # Secrets — set with: wrangler pages secret put <NAME>
 #   AUTH_SECRET             — long random string for JWT signing (min 32 chars)
+#   CRON_SECRET             — separate random string for /api/notify/cron (send as the
+#                             `X-Cron-Secret` header; keep it distinct from AUTH_SECRET)
 #   ONESIGNAL_REST_API_KEY  — OneSignal REST API key (Dashboard → Settings → Keys & IDs)
 #   CLOUDINARY_API_KEY      — Cloudinary API key
 #   CLOUDINARY_API_SECRET   — Cloudinary API secret

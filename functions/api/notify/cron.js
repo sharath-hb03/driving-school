@@ -1,6 +1,17 @@
 import { sendPush } from '../../_lib/onesignal.js'
 import { ok, unauthorized, badRequest } from '../../_lib/utils.js'
 
+// Constant-time string compare so the token check doesn't leak the secret via timing.
+function timingSafeEqual(a, b) {
+  const enc = new TextEncoder()
+  const aa = enc.encode(String(a))
+  const bb = enc.encode(String(b))
+  if (aa.length !== bb.length) return false
+  let diff = 0
+  for (let i = 0; i < aa.length; i++) diff |= aa[i] ^ bb[i]
+  return diff === 0
+}
+
 function formatClassTime(date) {
   return date.toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -23,15 +34,19 @@ export async function onRequestPost(context) {
 
 async function handleCron(context) {
   const { env, request } = context
-  const url = new URL(request.url)
-  const token = url.searchParams.get('token')
 
-  const expectedToken = env.AUTH_SECRET
-  if (!expectedToken) {
-    return unauthorized('AUTH_SECRET is not configured on the server')
+  // Cron auth: dedicated CRON_SECRET, sent as a header only so the secret never lands
+  // in URLs/logs. (The legacy AUTH_SECRET + ?token= query path has been removed.)
+  const expected = env.CRON_SECRET
+  if (!expected) {
+    return unauthorized('CRON_SECRET is not configured on the server')
   }
 
-  if (token !== expectedToken) {
+  const provided =
+    request.headers.get('X-Cron-Secret') ||
+    (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '')
+
+  if (!provided || !timingSafeEqual(provided, expected)) {
     return unauthorized('Invalid cron token')
   }
 

@@ -1,5 +1,5 @@
 // GET /api/settings  PUT /api/settings
-import { ok, badRequest, readJson } from '../_lib/utils.js'
+import { ok, badRequest, forbidden, readJson } from '../_lib/utils.js'
 
 export async function onRequestGet(context) {
   const { env, data } = context
@@ -29,6 +29,7 @@ export async function onRequestGet(context) {
 export async function onRequestPut(context) {
   const { env, data, request } = context
   const sid = data.schoolId
+  if (data.user?.role !== 'admin') return forbidden('Only school admins can change settings')
   const body = await readJson(request)
   if (!body) return badRequest('Invalid JSON')
   const allowed = ['name','phone','email','address','logo_key','stages']
