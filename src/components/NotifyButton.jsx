@@ -105,19 +105,24 @@ export default function NotifyButton({ className = '' }) {
   const { user } = useAuth()
   // checking | off | working | on
   const [status, setStatus] = useState('checking')
-  const [justEnabled, setJustEnabled] = useState(false)
   const [showUnblock, setShowUnblock] = useState(false)
 
   useEffect(() => {
     if (!isConfigured() || !user) return
     let mounted = true
+    // Safety net: if OneSignal never initialises (e.g. the SDK is blocked or
+    // stalls inside an installed PWA's service-worker scope), don't leave the
+    // button stuck hidden — fall back to showing "Enable Alerts".
+    const timer = setTimeout(() => {
+      if (mounted) setStatus((s) => (s === 'checking' ? 'off' : s))
+    }, 6000)
     runAutoSync(endpointFor(user.role)).then((s) => { if (mounted) setStatus(s) })
-    return () => { mounted = false }
+    return () => { mounted = false; clearTimeout(timer) }
   }, [user])
 
-  // Nothing to do: not configured, still checking, or already enabled before this session
+  // Nothing to do: not configured or still checking
   if (!isConfigured() || !user) return null
-  if (status === 'checking' || (status === 'on' && !justEnabled)) return null
+  if (status === 'checking') return null
 
   const enable = async () => {
     // The permission prompt can't be re-shown once denied — guide the user instead.
@@ -131,7 +136,6 @@ export default function NotifyButton({ className = '' }) {
       const subId = await getSubscriptionId()
       if (subId) {
         await api.post(endpointFor(user.role), { subscription_id: subId }).catch(() => {})
-        setJustEnabled(true)
         setStatus('on')
         return
       }
