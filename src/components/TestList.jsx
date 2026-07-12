@@ -17,8 +17,8 @@ function Row({ t, muted }) {
       <Avatar name={t.student_name} size={46} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <p className={`truncate font-semibold ${muted ? 'text-slate-600' : 'text-slate-800'}`}>{t.student_name}</p>
-          <Badge color={typeInfo.color}>{typeInfo.label}</Badge>
+          <p className={`min-w-0 truncate font-semibold ${muted ? 'text-slate-600' : 'text-slate-800'}`}>{t.student_name}</p>
+          <Badge color={typeInfo.color} className="shrink-0">{typeInfo.label}</Badge>
         </div>
         <p className="mt-0.5 text-xs text-slate-400">
           {fmtDate(t.date)}{t.time ? ` · ${fmtClock(t.time)}` : ''}
