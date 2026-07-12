@@ -1,20 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { format, parseISO, eachDayOfInterval } from 'date-fns'
-import { AlertTriangle, CalendarClock } from 'lucide-react'
+import { AlertTriangle, Check, Plus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { api } from '../lib/api'
 import { toInputDateTime, fmtDateTime } from '../lib/format'
 import Modal from './Modal'
 import { Spinner } from './ui'
-import { Select, TextInput, TextArea, Field } from './Field'
+import { Select, TextArea, Field } from './Field'
 import DateTimePicker from './DateTimePicker'
 
-const REPEAT_OPTIONS = [
-  { value: 'none', label: 'Does not repeat' },
-  { value: 'daily', label: 'Every day' },
-  { value: 'mon-sat', label: 'Mon–Sat (skip Sun)' },
-  { value: 'weekly', label: 'Weekly (same day)' }
-]
+const MAX_SLOTS = 30
 
 // Human-readable reason for a booking conflict (double-book / holiday / leave).
 function conflictReason(c) {
@@ -24,25 +19,17 @@ function conflictReason(c) {
   return `${what} already booked with ${c.with?.student_name || 'someone'}`
 }
 
-// Expand a start datetime into a list of class slots (Date objects),
-// skipping any day the `blocked` predicate rejects (holidays / instructor off).
-function buildSlots(localValue, repeat, count, blocked) {
-  if (!localValue) return []
-  const base = new Date(localValue)
-  if (Number.isNaN(base.getTime())) return []
-  if (repeat === 'none') return [base]
-  const n = Math.max(1, Math.min(60, Number(count) || 1))
-  const out = []
-  const cur = new Date(base)
-  let guard = 0
-  while (out.length < n && guard < 400) {
-    guard++
-    const isSunday = cur.getDay() === 0
-    const skip = (repeat === 'mon-sat' && isSunday) || (blocked && blocked(cur))
-    if (!skip) out.push(new Date(cur))
-    cur.setDate(cur.getDate() + (repeat === 'weekly' ? 7 : 1))
-  }
-  return out
+// Small status line shown under each slot row.
+function SlotStatus({ tone, label }) {
+  const color =
+    tone === 'good' ? 'text-emerald-600' : tone === 'bad' ? 'text-red-500' : tone === 'muted' ? 'text-slate-400' : 'text-amber-600'
+  const Icon = tone === 'good' ? Check : tone === 'muted' ? null : AlertTriangle
+  return (
+    <p className={`mt-1 flex items-center gap-1 pl-1 text-xs font-medium ${color}`}>
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
+      {label}
+    </p>
+  )
 }
 
 export default function ClassForm({ open, onClose, onSaved, student, klass, initialDate, instructorId }) {
@@ -53,9 +40,8 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
   const [busy, setBusy] = useState(false)
   const [studentQuery, setStudentQuery] = useState('')
 
-  // Multi-class booking + clash detection
-  const [repeat, setRepeat] = useState('none')
-  const [count, setCount] = useState(5)
+  // Multi-class booking: one row per class + clash detection
+  const [slotValues, setSlotValues] = useState([])
   const [conflicts, setConflicts] = useState([])
   const [checking, setChecking] = useState(false)
 
@@ -76,8 +62,6 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
     if (!open) return
     setStudentQuery('')
     setConflicts([])
-    setRepeat('none')
-    setCount(5)
     Promise.all([
       student ? Promise.resolve({ students: [student] }) : api.get('/students'),
       api.get('/instructors'),
@@ -91,6 +75,7 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
     })
 
     if (editing) {
+      setSlotValues([])
       setForm({
         student_id: klass.student_id,
         instructor_id: klass.instructor_id || '',
@@ -102,11 +87,12 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
     } else {
       const base = initialDate ? new Date(`${initialDate}T10:00`) : new Date()
       if (!initialDate) base.setMinutes(0)
+      setSlotValues([toInputDateTime(base)])
       setForm({
         student_id: student?.id || '',
         instructor_id: instructorId || '',
         vehicle_id: '',
-        scheduled_at: toInputDateTime(base),
+        scheduled_at: '',
         duration_min: 60,
         notes: ''
       })
@@ -155,26 +141,65 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
     }
   }, [selectedInstructor, timeoff])
 
-  const holidaySet = useMemo(() => new Set(holidays.map((h) => h.date)), [holidays])
+  const holidayNames = useMemo(() => {
+    const m = {}
+    for (const h of holidays) m[h.date] = h.name
+    return m
+  }, [holidays])
   const isBlockedDay = useCallback(
     (d) => {
       const k = format(d, 'yyyy-MM-dd')
-      if (holidaySet.has(k)) return true
+      if (holidayNames[k]) return true
       if (availability) {
         if (availability.daysOff.includes(k)) return true
         if (availability.workDays.length && !availability.workDays.includes(d.getDay())) return true
       }
       return false
     },
-    [holidaySet, availability]
+    [holidayNames, availability]
   )
 
-  // The concrete slots this form would book (single class when editing).
-  const slots = useMemo(
-    () => buildSlots(form.scheduled_at, editing ? 'none' : repeat, count, isBlockedDay),
-    [form.scheduled_at, repeat, count, editing, isBlockedDay]
+  const parsedRows = useMemo(
+    () =>
+      slotValues.map((v) => {
+        const d = v ? new Date(v) : null
+        return d && !Number.isNaN(d.getTime()) ? d : null
+      }),
+    [slotValues]
   )
-  const slotsISO = useMemo(() => slots.map((d) => d.toISOString()), [slots])
+
+  // Per-row verdict before asking the server: past / holiday / off-day /
+  // overlapping another row in this form — or 'ok' (a real booking candidate).
+  const rowBase = useMemo(() => {
+    const durMs = (Number(form.duration_min) || 60) * 60000
+    const now = new Date()
+    return parsedRows.map((d, i) => {
+      if (!d) return { kind: 'empty' }
+      if (d < now) return { kind: 'past', label: 'This time is in the past' }
+      const k = format(d, 'yyyy-MM-dd')
+      if (holidayNames[k]) return { kind: 'blocked', label: `Holiday — ${holidayNames[k]}` }
+      if (availability) {
+        if (availability.daysOff.includes(k)) return { kind: 'blocked', label: 'Instructor on leave this day' }
+        if (availability.workDays.length && !availability.workDays.includes(d.getDay()))
+          return { kind: 'blocked', label: 'Instructor not working this day' }
+      }
+      for (let j = 0; j < i; j++) {
+        if (parsedRows[j] && Math.abs(d - parsedRows[j]) < durMs)
+          return { kind: 'overlap', label: 'Overlaps another class above' }
+      }
+      return { kind: 'ok', iso: d.toISOString() }
+    })
+  }, [parsedRows, form.duration_min, holidayNames, availability])
+
+  // The slots this form would actually try to book.
+  const checkISO = useMemo(() => rowBase.filter((r) => r.kind === 'ok').map((r) => r.iso), [rowBase])
+  const slotsISO = useMemo(() => {
+    if (!editing) return checkISO
+    if (!form.scheduled_at) return []
+    const d = new Date(form.scheduled_at)
+    return Number.isNaN(d.getTime()) ? [] : [d.toISOString()]
+  }, [editing, checkISO, form.scheduled_at])
+
   const clashedSlots = useMemo(() => new Set(conflicts.map((c) => c.scheduled_at)), [conflicts])
   const freeCount = useMemo(() => slotsISO.filter((s) => !clashedSlots.has(s)).length, [slotsISO, clashedSlots])
 
@@ -207,6 +232,26 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, slotsISO, form.instructor_id, form.vehicle_id, form.duration_min])
 
+  const updateSlot = (idx, v) => setSlotValues((vals) => vals.map((x, i) => (i === idx ? v : x)))
+  const removeSlot = (idx) => setSlotValues((vals) => vals.filter((_, i) => i !== idx))
+
+  // Add a new row = last row shifted forward, same time of day.
+  // Skips holidays / off-days / already-added times.
+  const addSlot = (days) => {
+    const lastVal = [...parsedRows].reverse().find(Boolean)
+    const base = lastVal ? new Date(lastVal) : new Date(new Date().setMinutes(0, 0, 0))
+    const d = new Date(base)
+    const taken = new Set(slotValues)
+    const now = new Date()
+    let guard = 0
+    do {
+      d.setDate(d.getDate() + days)
+      guard++
+    } while (guard < 60 && (isBlockedDay(d) || d <= now || taken.has(toInputDateTime(d))))
+    setSlotValues((vals) => [...vals, toInputDateTime(d)])
+  }
+  const canAdd = slotValues.length < MAX_SLOTS && parsedRows.some(Boolean)
+
   const selectedStudent = students.find((s) => s.id === form.student_id)
   const term = studentQuery.trim().toLowerCase()
   const studentMatches = (
@@ -225,11 +270,10 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
   const submit = async (e) => {
     e.preventDefault()
     if (!form.student_id) return toast.error('Choose a student')
-    if (!form.scheduled_at) return toast.error('Pick a date & time')
-    if (!editing && new Date(form.scheduled_at) < new Date()) return toast.error('Pick a time in the future')
     setBusy(true)
     try {
       if (editing) {
+        if (!form.scheduled_at) return toast.error('Pick a date & time')
         const payload = {
           instructor_id: form.instructor_id || null,
           vehicle_id: form.vehicle_id || null,
@@ -242,13 +286,14 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
         onSaved?.(res.class)
         onClose()
       } else {
+        if (!checkISO.length) return toast.error('Pick a valid date & time')
         const res = await api.post('/classes', {
           student_id: form.student_id,
           instructor_id: form.instructor_id || null,
           vehicle_id: form.vehicle_id || null,
           duration_min: Number(form.duration_min),
           notes: form.notes,
-          slots: slotsISO
+          slots: checkISO
         })
         const made = res.classes?.length || 0
         const skipped = res.skipped?.length || 0
@@ -271,11 +316,25 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
   const blocked = editing ? conflicts.length > 0 : freeCount === 0
   const submitLabel = editing
     ? 'Save'
-    : slotsISO.length <= 1
-    ? 'Book class'
     : freeCount === 0
     ? 'Resolve clashes'
-    : `Book ${freeCount} class${freeCount > 1 ? 'es' : ''}`
+    : freeCount === 1
+    ? 'Book class'
+    : `Book ${freeCount} classes`
+
+  // Status chip for a slot row: pre-checks first, then the server's verdict.
+  const rowStatus = (idx) => {
+    const r = rowBase[idx]
+    if (!r || r.kind === 'empty') return null
+    if (r.kind === 'past') return { tone: 'bad', label: r.label }
+    if (r.kind === 'blocked') return { tone: 'bad', label: r.label }
+    if (r.kind === 'overlap') return { tone: 'warn', label: r.label }
+    const clash = conflicts.find((c) => c.scheduled_at === r.iso)
+    if (clash) return { tone: 'warn', label: conflictReason(clash) }
+    if (!form.instructor_id && !form.vehicle_id) return null
+    if (checking) return { tone: 'muted', label: 'Checking availability…' }
+    return { tone: 'good', label: 'Available' }
+  }
 
   return (
     <Modal
@@ -367,52 +426,87 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
             options={vehicles.map((v) => ({ value: v.id, label: `${v.vehicle_number}${v.model ? ' · ' + v.model : ''}` }))}
           />
         </div>
-        <Field
-          label={editing ? 'Date & time' : 'First class'}
-          required
-          hint={selectedInstructor ? `${selectedInstructor.name}'s working days & hours are shown; off-days are greyed out.` : undefined}
-        >
-          <DateTimePicker
-            value={form.scheduled_at}
-            onChange={(v) => setForm((f) => ({ ...f, scheduled_at: v }))}
-            disablePast={!editing}
-            holidays={holidays}
-            availability={availability}
-          />
-        </Field>
-        {/* Multi-class booking — book a batch of lessons in one go. */}
-        {!editing && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <Select label="Repeat" value={repeat} onChange={(e) => setRepeat(e.target.value)} options={REPEAT_OPTIONS} />
-              {repeat !== 'none' && (
-                <TextInput
-                  label="No. of classes"
-                  type="number"
-                  min={2}
-                  max={30}
-                  value={count}
-                  onChange={(e) => setCount(e.target.value)}
-                />
-              )}
-            </div>
-            {repeat !== 'none' && slots.length > 0 && (
-              <div className="-mt-1 mb-4 flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs text-slate-500">
-                <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
-                <p>
-                  <span className="font-semibold text-slate-700">{slots.length} classes</span> ·{' '}
-                  {slots.map((d) => format(d, 'EEE d MMM')).join(', ')}
-                  {(holidays.length > 0 || availability) && (
-                    <span className="mt-0.5 block text-slate-400">Holidays & off-days are skipped automatically.</span>
-                  )}
-                </p>
+
+        {editing ? (
+          <Field
+            label="Date & time"
+            required
+            hint={selectedInstructor ? `${selectedInstructor.name}'s working days & hours are shown; off-days are greyed out.` : undefined}
+          >
+            <DateTimePicker
+              value={form.scheduled_at}
+              onChange={(v) => setForm((f) => ({ ...f, scheduled_at: v }))}
+              disablePast={false}
+              holidays={holidays}
+              availability={availability}
+            />
+          </Field>
+        ) : (
+          /* Multi-class booking — one row per class, checked live. */
+          <Field
+            label={slotValues.length > 1 ? 'Classes' : 'Date & time'}
+            required
+            hint={selectedInstructor ? `${selectedInstructor.name}'s off-days are greyed out in the calendar.` : undefined}
+          >
+            <div className="space-y-2.5">
+              {slotValues.map((v, idx) => {
+                const status = rowStatus(idx)
+                return (
+                  <div key={idx}>
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1">
+                        <DateTimePicker
+                          value={v}
+                          onChange={(nv) => updateSlot(idx, nv)}
+                          disablePast
+                          holidays={holidays}
+                          availability={availability}
+                        />
+                      </div>
+                      {slotValues.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSlot(idx)}
+                          title="Remove this class"
+                          className="shrink-0 rounded-lg p-1.5 text-slate-300 transition hover:bg-red-50 hover:text-red-500"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    {status && <SlotStatus tone={status.tone} label={status.label} />}
+                  </div>
+                )
+              })}
+
+              <div className="flex gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => addSlot(1)}
+                  disabled={!canAdd}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 py-2 text-xs font-semibold text-slate-500 transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Next day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => addSlot(7)}
+                  disabled={!canAdd}
+                  className="inline-flex flex-1 items-center justify-center gap-1 rounded-xl border border-dashed border-slate-300 py-2 text-xs font-semibold text-slate-500 transition hover:border-brand-400 hover:bg-brand-50 hover:text-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Next week
+                </button>
               </div>
-            )}
-          </>
+              <p className="text-[11px] text-slate-400">
+                Adds another class at the same time · holidays & off-days are skipped.
+                {!form.instructor_id && !form.vehicle_id ? ' Pick an instructor or vehicle to check for clashes.' : ''}
+              </p>
+            </div>
+          </Field>
         )}
 
-        {/* Clash warning — names the student already holding the slot. */}
-        {conflicts.length > 0 && (
+        {/* Clash warning while editing — names the student already holding the slot. */}
+        {editing && conflicts.length > 0 && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
             <div className="flex items-center gap-2 text-amber-700">
               <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -427,16 +521,10 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-xs text-amber-600">
-              {editing
-                ? 'Pick a different time to resolve this.'
-                : freeCount > 0
-                ? `Clashing slots are skipped — ${freeCount} class${freeCount > 1 ? 'es' : ''} will be booked.`
-                : 'Every selected time clashes. Pick another time or instructor.'}
-            </p>
+            <p className="mt-2 text-xs text-amber-600">Pick a different time to resolve this.</p>
           </div>
         )}
-        {checking && <p className="mb-4 -mt-1 text-xs text-slate-400">Checking availability…</p>}
+        {editing && checking && <p className="mb-4 -mt-1 text-xs text-slate-400">Checking availability…</p>}
 
         <TextArea label="Notes" value={form.notes} onChange={set('notes')} placeholder="Optional" />
       </form>
