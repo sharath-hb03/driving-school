@@ -7,6 +7,7 @@ import SuperAdminLayout from './components/SuperAdminLayout'
 import { PageLoader } from './components/ui'
 
 import Login from './pages/Login'
+import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
 import StudentDetail from './pages/StudentDetail'
@@ -56,6 +57,23 @@ function PortalProtected() {
   )
 }
 
+// Root route: logged-in staff get the dashboard; logged-out visitors get the
+// public landing page — unless they're in a school's PWA context (a saved slug
+// or ?school= param), in which case send them to that school's branded login.
+function Home() {
+  const { user, loading } = useAuth()
+  if (loading) return <PageLoader />
+  if (!user) {
+    const params = new URLSearchParams(window.location.search)
+    const slug = params.get('school') || localStorage.getItem('dsms_school_slug')
+    if (slug) {
+      return <Navigate to={`/login?school=${encodeURIComponent(slug)}`} replace />
+    }
+    return <Landing />
+  }
+  return <Protected><Dashboard /></Protected>
+}
+
 function SuperAdminProtected({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <PageLoader />
@@ -83,7 +101,7 @@ export default function App() {
       <Route path="/portal" element={<PortalProtected />} />
 
       {/* School admin / staff routes */}
-      <Route path="/" element={<Protected><Dashboard /></Protected>} />
+      <Route path="/" element={<Home />} />
       <Route path="/students" element={<Protected><Students /></Protected>} />
       <Route path="/students/:id" element={<Protected><StudentDetail /></Protected>} />
       <Route path="/schedule" element={<Protected><Schedule /></Protected>} />

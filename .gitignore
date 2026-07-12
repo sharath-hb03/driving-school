@@ -33,3 +33,6 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+Driving_Schools_Lead_Database.xlsx
+school_list.py
