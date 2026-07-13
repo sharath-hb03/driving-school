@@ -1,6 +1,7 @@
 // GET /api/public/school?slug=grace
-// Publicly resolves a school's name from its slug (used on login screen)
+// Publicly resolves a school's name + logo from its slug (used on login screen)
 import { json } from '../../_lib/utils.js'
+import { logoDisplayUrl } from '../../_lib/cloudinary.js'
 
 export async function onRequestGet(context) {
   const { env, request } = context
@@ -17,7 +18,7 @@ export async function onRequestGet(context) {
 
   try {
     const school = await env.DB.prepare(
-      'SELECT name, active FROM schools WHERE slug = ?'
+      'SELECT name, active, logo_key FROM schools WHERE slug = ?'
     ).bind(slug).first()
 
     if (!school) {
@@ -32,7 +33,8 @@ export async function onRequestGet(context) {
       ok: true,
       school: {
         name: school.name,
-        slug: slug
+        slug: slug,
+        logo_url: logoDisplayUrl(env, school.logo_key)
       }
     })
   } catch (err) {

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { NavLink, useNavigate, Link } from 'react-router-dom'
 import {
   LayoutDashboard, MessageCircle, Users, CalendarDays, Wallet,
-  Car, GraduationCap, CalendarOff, Settings, MoreHorizontal, LogOut, X, Building2, ClipboardList
+  Car, GraduationCap, CalendarOff, Settings, MoreHorizontal, LogOut, X, ClipboardList
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Avatar } from './ui'
 import InstallButton from './InstallButton'
 import NotifyButton from './NotifyButton'
+import SchoolLogo from './SchoolLogo'
 
 const NAV = [
   { to: '/',           label: 'Dashboard',  icon: LayoutDashboard, end: true },
@@ -37,9 +38,7 @@ export default function Layout({ children }) {
       {/* Desktop sidebar */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-5 lg:flex">
         <div className="mb-6 flex items-center gap-2.5 px-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600">
-            <Building2 className="h-5 w-5 text-white" />
-          </div>
+          <SchoolLogo src={user?.school_logo} size={36} />
           <div>
             <p className="text-sm font-extrabold leading-tight text-slate-800">{user?.school_name || 'DriveSchool'}</p>
             <p className="text-xs text-slate-400">Manager</p>

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { Avatar } from './ui'
 import InstallButton from './InstallButton'
 import NotifyButton from './NotifyButton'
+import SchoolLogo from './SchoolLogo'
 
 export default function PortalLayout({ children }) {
   const { user, logout } = useAuth()
@@ -16,7 +17,11 @@ export default function PortalLayout({ children }) {
         style={{ paddingTop: 'var(--safe-top)' }}>
         <div className="mx-auto w-full max-w-5xl px-4 py-3">
           <div className="flex items-center gap-3">
-            <Avatar name={user?.name} size={40} />
+            {user?.school_logo ? (
+              <SchoolLogo src={user.school_logo} size={40} />
+            ) : (
+              <Avatar name={user?.name} size={40} />
+            )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-bold text-slate-800">{user?.name}</p>
               <p className="truncate text-xs capitalize text-slate-400">{user?.school_name || user?.role}</p>

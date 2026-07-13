@@ -2,6 +2,7 @@
 // Checks: super_admins → users → students → instructors
 import { verifyPassword, signSession, sessionCookie } from '../../_lib/auth.js'
 import { readJson, requireFields, badRequest, unauthorized, json } from '../../_lib/utils.js'
+import { logoDisplayUrl } from '../../_lib/cloudinary.js'
 
 export async function onRequestPost(context) {
   const { request, env } = context
@@ -28,7 +29,7 @@ export async function onRequestPost(context) {
 
   // 2. School users (admin / staff)
   const u = await DB.prepare(
-    `SELECT u.*, s.name AS school_name, s.slug AS school_slug FROM users u
+    `SELECT u.*, s.name AS school_name, s.slug AS school_slug, s.logo_key AS school_logo_key FROM users u
      JOIN schools s ON s.id = u.school_id
      WHERE u.email = ?`
   ).bind(email).first()
@@ -40,13 +41,13 @@ export async function onRequestPost(context) {
       { sub: u.id, email: u.email, name: u.name, role: u.role, school_id: u.school_id, school_name: u.school_name, school_slug: u.school_slug },
       env.AUTH_SECRET
     )
-    const user = { id: u.id, email: u.email, name: u.name, role: u.role, school_id: u.school_id, school_name: u.school_name, school_slug: u.school_slug }
+    const user = { id: u.id, email: u.email, name: u.name, role: u.role, school_id: u.school_id, school_name: u.school_name, school_slug: u.school_slug, school_logo: logoDisplayUrl(env, u.school_logo_key) }
     return json({ ok: true, user }, { headers: { 'Set-Cookie': sessionCookie(token) } })
   }
 
   // 3. Students (portal login)
   const st = await DB.prepare(
-    `SELECT st.*, s.name AS school_name, s.slug AS school_slug FROM students st
+    `SELECT st.*, s.name AS school_name, s.slug AS school_slug, s.logo_key AS school_logo_key FROM students st
      JOIN schools s ON s.id = st.school_id
      WHERE st.email = ? AND st.password_hash IS NOT NULL`
   ).bind(email).first()
@@ -57,13 +58,13 @@ export async function onRequestPost(context) {
       { sub: st.id, email: st.email, name: st.name, role: 'student', school_id: st.school_id, school_name: st.school_name, school_slug: st.school_slug },
       env.AUTH_SECRET
     )
-    const user = { id: st.id, email: st.email, name: st.name, role: 'student', school_id: st.school_id, school_name: st.school_name, school_slug: st.school_slug }
+    const user = { id: st.id, email: st.email, name: st.name, role: 'student', school_id: st.school_id, school_name: st.school_name, school_slug: st.school_slug, school_logo: logoDisplayUrl(env, st.school_logo_key) }
     return json({ ok: true, user }, { headers: { 'Set-Cookie': sessionCookie(token) } })
   }
 
   // 4. Instructors (portal login)
   const ins = await DB.prepare(
-    `SELECT i.*, s.name AS school_name, s.slug AS school_slug FROM instructors i
+    `SELECT i.*, s.name AS school_name, s.slug AS school_slug, s.logo_key AS school_logo_key FROM instructors i
      JOIN schools s ON s.id = i.school_id
      WHERE i.email = ? AND i.password_hash IS NOT NULL`
   ).bind(email).first()
@@ -74,7 +75,7 @@ export async function onRequestPost(context) {
       { sub: ins.id, email: ins.email, name: ins.name, role: 'instructor', school_id: ins.school_id, school_name: ins.school_name, school_slug: ins.school_slug },
       env.AUTH_SECRET
     )
-    const user = { id: ins.id, email: ins.email, name: ins.name, role: 'instructor', school_id: ins.school_id, school_name: ins.school_name, school_slug: ins.school_slug }
+    const user = { id: ins.id, email: ins.email, name: ins.name, role: 'instructor', school_id: ins.school_id, school_name: ins.school_name, school_slug: ins.school_slug, school_logo: logoDisplayUrl(env, ins.school_logo_key) }
     return json({ ok: true, user }, { headers: { 'Set-Cookie': sessionCookie(token) } })
   }
 

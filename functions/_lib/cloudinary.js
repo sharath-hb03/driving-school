@@ -101,6 +101,25 @@ export function rasterUrl(env, publicId, version) {
   return `${CDN_BASE}/${env.CLOUDINARY_CLOUD_NAME}/image/upload/f_png,q_auto,c_limit,w_1600/${ver(version)}${publicId}.png`
 }
 
+// ---- School logo delivery URLs (the stored `logo_key` is a Cloudinary public_id) ----
+
+// Logo for on-screen display: preserves transparency, scaled to fit a small box.
+export function logoDisplayUrl(env, publicId) {
+  if (!publicId || !env.CLOUDINARY_CLOUD_NAME) return null
+  // Tolerate a full URL that may have been stored directly.
+  if (/^https?:\/\//i.test(publicId)) return publicId
+  return `${CDN_BASE}/${env.CLOUDINARY_CLOUD_NAME}/image/upload/f_auto,q_auto,c_fit,w_256,h_256/${publicId}`
+}
+
+// Square, padded, opaque PNG for PWA / home-screen icons. Leaves a ~10% safe
+// margin so maskable icons aren't clipped.
+export function logoIconUrl(env, publicId, size) {
+  if (!publicId || !env.CLOUDINARY_CLOUD_NAME) return null
+  if (/^https?:\/\//i.test(publicId)) return null // can't resize an arbitrary URL — caller falls back to default
+  const inner = Math.round(size * 0.8)
+  return `${CDN_BASE}/${env.CLOUDINARY_CLOUD_NAME}/image/upload/c_fit,w_${inner},h_${inner}/c_pad,w_${size},h_${size},b_white,f_png,q_auto/${publicId}`
+}
+
 export function attachmentUrl(env, publicId, version, filename) {
   const safe = String(filename || 'certificate').replace(/[^a-z0-9_-]/gi, '_')
   return `${CDN_BASE}/${env.CLOUDINARY_CLOUD_NAME}/image/upload/fl_attachment:${safe},f_png,c_limit,w_1600/${ver(version)}${publicId}.png`

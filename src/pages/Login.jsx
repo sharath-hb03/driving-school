@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, Shield, Building2 } from 'lucide-react'
+import { Eye, EyeOff, Shield } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Spinner } from '../components/ui'
 import { api } from '../lib/api'
+import SchoolLogo from '../components/SchoolLogo'
 
 export default function Login() {
   const { login } = useAuth()
@@ -14,6 +15,7 @@ export default function Login() {
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
   const [schoolName, setSchoolName] = useState(() => localStorage.getItem('dsms_school_name') || 'DriveSchool Manager')
+  const [schoolLogo, setSchoolLogo] = useState(() => localStorage.getItem('dsms_school_logo') || null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -28,6 +30,9 @@ export default function Login() {
             const metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]')
             if (metaTitle) metaTitle.setAttribute('content', data.school.name)
           }
+          setSchoolLogo(data?.school?.logo_url || null)
+          if (data?.school?.logo_url) localStorage.setItem('dsms_school_logo', data.school.logo_url)
+          else localStorage.removeItem('dsms_school_logo')
         })
         .catch(err => {
           console.error('Failed to load school branding:', err)
@@ -61,9 +66,7 @@ export default function Login() {
     <div className="flex min-h-screen flex-col justify-center bg-gradient-to-br from-brand-50 via-white to-slate-50 px-5 py-10">
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-600 shadow-soft">
-            <Building2 className="h-8 w-8 text-white" />
-          </div>
+          <SchoolLogo src={schoolLogo} size={64} className="mx-auto mb-4 !rounded-2xl shadow-soft" />
           <h1 className="text-2xl font-extrabold text-slate-900">{schoolName}</h1>
           <p className="mt-1 text-sm text-slate-500">Sign in to your school account</p>
         </div>

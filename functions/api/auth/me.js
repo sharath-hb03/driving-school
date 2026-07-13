@@ -1,5 +1,6 @@
 // GET /api/auth/me -> { ok, user }
 import { json } from '../../_lib/utils.js'
+import { logoDisplayUrl } from '../../_lib/cloudinary.js'
 
 export async function onRequestGet(context) {
   const { data, env } = context
@@ -8,12 +9,16 @@ export async function onRequestGet(context) {
   const u = data.user
   let school_name = u.school_name || null
   let school_slug = u.school_slug || null
+  let school_logo = null
 
-  // Refresh school name + slug from DB for non-super-admin roles
-  if (u.school_id && (!u.school_name || !u.school_slug)) {
-    const s = await env.DB.prepare('SELECT name, slug FROM schools WHERE id = ?').bind(u.school_id).first()
-    school_name = s?.name || null
-    school_slug = s?.slug || null
+  // Refresh school branding from DB (name/slug may be stale in the token; logo is never in it)
+  if (u.school_id) {
+    const s = await env.DB.prepare('SELECT name, slug, logo_key FROM schools WHERE id = ?').bind(u.school_id).first()
+    if (s) {
+      school_name = s.name || school_name
+      school_slug = s.slug || school_slug
+      school_logo = logoDisplayUrl(env, s.logo_key)
+    }
   }
 
   return json({
@@ -26,6 +31,7 @@ export async function onRequestGet(context) {
       school_id:   u.school_id   || null,
       school_name,
       school_slug,
+      school_logo,
     }
   })
 }

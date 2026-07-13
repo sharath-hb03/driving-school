@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Settings, Users, Pencil, Plus, Trash2, KeyRound, Package, ArrowUp, ArrowDown, Milestone } from 'lucide-react'
+import { Settings, Users, Pencil, Plus, Trash2, KeyRound, Package, ArrowUp, ArrowDown, Milestone, Upload } from 'lucide-react'
 import { useApi } from '../lib/useApi'
 import { api } from '../lib/api'
 import { inr } from '../lib/format'
@@ -10,6 +10,7 @@ import { Spinner, Badge } from '../components/ui'
 import { TextInput, TextArea, Select, PillGroup } from '../components/Field'
 import Modal from '../components/Modal'
 import { useConfirm } from '../components/ConfirmDialog'
+import SchoolLogo from '../components/SchoolLogo'
 
 const LICENSE_OPTS = [
   { value: '2W', label: '2-Wheeler' },
@@ -180,7 +181,7 @@ function PackageModal({ open, onClose, onSaved, pkg }) {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth()
+  const { user, refresh } = useAuth()
   const { data, loading, reload } = useApi('/settings')
   const { data: pkgData, loading: pkgLoading, reload: reloadPackages } = useApi('/packages')
   const confirm = useConfirm()
@@ -192,6 +193,7 @@ export default function SettingsPage() {
 
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
   const [staffModal, setStaffModal] = useState({ open: false, member: null })
   const [pkgModal, setPkgModal] = useState({ open: false, pkg: null })
   const [localStages, setLocalStages] = useState([])
@@ -278,6 +280,49 @@ export default function SettingsPage() {
     }
   }
 
+  const onLogoFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      return toast.error('Use a PNG, JPG or WebP image')
+    }
+    if (file.size > 5 * 1024 * 1024) return toast.error('Image too large (max 5 MB)')
+    setLogoBusy(true)
+    try {
+      const up = await api.upload(file, 'logo')
+      await api.put('/settings', { logo_key: up.public_id })
+      toast.success('Logo updated')
+      reload()
+      refresh() // updates the logo in the sidebar right away
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setLogoBusy(false)
+    }
+  }
+
+  const removeLogo = async () => {
+    const okc = await confirm({
+      title: 'Remove logo?',
+      message: 'The app will go back to the default icon.',
+      danger: true,
+      confirmText: 'Remove',
+    })
+    if (!okc) return
+    setLogoBusy(true)
+    try {
+      await api.put('/settings', { logo_key: null })
+      toast.success('Logo removed')
+      reload()
+      refresh()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setLogoBusy(false)
+    }
+  }
+
   const removePackage = async (p) => {
     const ok = await confirm({ title: 'Delete package?', message: `Remove "${p.name}"? Students keep their record but lose the package link.`, danger: true, confirmText: 'Delete' })
     if (!ok) return
@@ -318,6 +363,30 @@ export default function SettingsPage() {
             <button className="btn-ghost px-3 py-1.5 text-xs" onClick={startEdit}>
               <Pencil className="h-3.5 w-3.5" /> Edit
             </button>
+          )}
+        </div>
+
+        {/* School logo — shown in the app and used as the installed app icon */}
+        <div className="mb-4 flex items-center gap-4 rounded-xl bg-slate-50 p-3">
+          <SchoolLogo src={school?.logo_url} size={56} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-700">School logo</p>
+            <p className="text-xs text-slate-400">Shown in the app and as the installed app icon.</p>
+          </div>
+          {isAdmin && (
+            <div className="flex shrink-0 items-center gap-1">
+              <label className={`btn-ghost cursor-pointer px-3 py-1.5 text-xs ${logoBusy ? 'pointer-events-none opacity-50' : ''}`}>
+                {logoBusy ? <Spinner className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />}
+                {school?.logo_url ? 'Change' : 'Upload'}
+                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={onLogoFile} disabled={logoBusy} />
+              </label>
+              {school?.logo_url && (
+                <button onClick={removeLogo} disabled={logoBusy}
+                  className="rounded-lg p-1.5 text-red-400 hover:bg-red-50" title="Remove logo">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
+            </div>
           )}
         </div>
 

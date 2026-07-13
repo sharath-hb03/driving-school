@@ -19,6 +19,14 @@ function applySchoolManifest(user) {
   if (link) {
     link.setAttribute('href', `/api/manifest?slug=${encodeURIComponent(user.school_slug)}`)
   }
+  // Branded icons (school logo or default): home-screen icon + favicon
+  const iconHref = `/api/icon?slug=${encodeURIComponent(user.school_slug)}&size=192`
+  document.querySelector('link[rel="apple-touch-icon"]')?.setAttribute('href', iconHref)
+  const favicon = document.querySelector('link[rel="icon"]')
+  if (favicon) {
+    favicon.setAttribute('href', iconHref)
+    favicon.setAttribute('type', 'image/png')
+  }
 }
 
 export function AuthProvider({ children }) {
@@ -51,6 +59,7 @@ export function AuthProvider({ children }) {
     await api.post('/auth/logout')
     localStorage.removeItem('dsms_school_slug')
     localStorage.removeItem('dsms_school_name')
+    localStorage.removeItem('dsms_school_logo')
     setUser(null)
   }
 

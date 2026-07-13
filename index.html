@@ -41,7 +41,14 @@
           localStorage.setItem('dsms_school_slug', slug);
           var link = document.querySelector('link[rel="manifest"]');
           if (link) link.setAttribute('href', '/api/manifest?slug=' + encodeURIComponent(slug));
-          
+
+          // Branded icons: school logo when uploaded, default otherwise
+          var iconHref = '/api/icon?slug=' + encodeURIComponent(slug) + '&size=192';
+          var touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+          if (touchIcon) touchIcon.setAttribute('href', iconHref);
+          var favicon = document.querySelector('link[rel="icon"]');
+          if (favicon) { favicon.setAttribute('href', iconHref); favicon.setAttribute('type', 'image/png'); }
+
           var savedName = localStorage.getItem('dsms_school_name');
           if (savedName) {
             document.title = savedName;

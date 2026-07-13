@@ -1,5 +1,6 @@
 // GET /api/settings  PUT /api/settings
 import { ok, badRequest, forbidden, readJson } from '../_lib/utils.js'
+import { logoDisplayUrl, cloudinaryDelete } from '../_lib/cloudinary.js'
 
 export async function onRequestGet(context) {
   const { env, data } = context
@@ -23,7 +24,7 @@ export async function onRequestGet(context) {
     } catch (e) {}
   }
 
-  return ok({ school: { ...school, stages }, staff: staffRes.results })
+  return ok({ school: { ...school, stages, logo_url: logoDisplayUrl(env, school?.logo_key) }, staff: staffRes.results })
 }
 
 export async function onRequestPut(context) {
@@ -42,7 +43,19 @@ export async function onRequestPut(context) {
     }
     return body[c]
   })
+
+  // When the logo changes, clean up the old Cloudinary asset (best effort)
+  let oldLogo = null
+  if (cols.includes('logo_key')) {
+    const cur = await env.DB.prepare('SELECT logo_key FROM schools WHERE id=?').bind(sid).first()
+    oldLogo = cur?.logo_key || null
+  }
+
   await env.DB.prepare(`UPDATE schools SET ${set} WHERE id=?`).bind(...vals, sid).run()
+
+  if (oldLogo && oldLogo !== body.logo_key && !/^https?:\/\//i.test(oldLogo)) {
+    context.waitUntil(cloudinaryDelete(oldLogo, env).catch(() => {}))
+  }
   const school = await env.DB.prepare('SELECT * FROM schools WHERE id=?').bind(sid).first()
   
   let stages = []
@@ -51,5 +64,5 @@ export async function onRequestPut(context) {
       stages = JSON.parse(school.stages)
     } catch (e) {}
   }
-  return ok({ school: { ...school, stages } })
+  return ok({ school: { ...school, stages, logo_url: logoDisplayUrl(env, school?.logo_key) } })
 }
