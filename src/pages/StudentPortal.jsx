@@ -4,17 +4,21 @@ import { useApi } from '../lib/useApi'
 import { api } from '../lib/api'
 import { inr, fmtDateTime, fmtDate } from '../lib/format'
 import { Badge, Spinner, EmptyState, StatCard } from '../components/ui'
-import { CalendarDays, Wallet, CheckCircle2, GraduationCap, Phone, ShieldCheck, Car, Check } from 'lucide-react'
+import { CalendarDays, Wallet, CheckCircle2, GraduationCap, Phone, ShieldCheck, Car, Check, FolderOpen, ClipboardList } from 'lucide-react'
 import CertificateCard from '../components/CertificateCard'
+import StudentDocuments from '../components/StudentDocuments'
+import LLProfileCard from '../components/LLProfileCard'
 
 const STATUS_COLOR = { scheduled: 'blue', attended: 'green', absent: 'red', cancelled: 'gray' }
 
 export default function StudentPortal() {
   const { data, loading, reload } = useApi('/portal/me')
   const [certBusy, setCertBusy] = useState(false)
+  const [tab, setTab] = useState('progress')
   const student  = data?.student
   const payments = data?.payments  || []
   const cert     = data?.certificate
+  const documents = data?.documents || []
 
   const stages = data?.stages || []
   let progress = {}
@@ -62,6 +66,21 @@ export default function StudentPortal() {
   const balance = student.balance ?? 0
   const pct = student.total_classes ? Math.min(100, Math.round((student.completed_classes / student.total_classes) * 100)) : 0
 
+  // Licence students get tabs to keep the page short; others just see classes + certificate.
+  const optLicense = !!student.opt_for_license
+  const tabs = optLicense
+    ? [
+        { key: 'progress', label: 'Progress', icon: CheckCircle2 },
+        { key: 'classes', label: 'Classes', icon: CalendarDays, count: upcoming.length },
+        { key: 'licence', label: 'Licence', icon: ShieldCheck },
+        { key: 'documents', label: 'Documents', icon: FolderOpen, count: documents.length },
+        { key: 'profile', label: 'Profile', icon: ClipboardList },
+      ]
+    : []
+  const activeTab = tabs.some((t) => t.key === tab) ? tab : (tabs[0]?.key || 'classes')
+  const showProgress = !optLicense || activeTab === 'progress'
+  const showClasses = !optLicense || activeTab === 'classes'
+
   return (
     <div className="page-enter space-y-5">
       {/* Progress */}
@@ -104,8 +123,30 @@ export default function StudentPortal() {
         </div>
       </div>
 
+      {/* Tab bar (licence students) */}
+      {tabs.length > 0 && (
+        <div className="flex gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
+                activeTab === t.key ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <t.icon className="h-4 w-4" /> {t.label}
+              {t.count != null && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeTab === t.key ? 'bg-brand-100 text-brand-700' : 'bg-slate-200 text-slate-500'}`}>
+                  {t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Student Progress Pipeline */}
-      {!!student.opt_for_license && stages.length > 0 && (
+      {showProgress && !!student.opt_for_license && stages.length > 0 && (
         <div className="card p-5">
           <h2 className="mb-4 font-bold text-slate-800 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-brand-600" />
@@ -227,7 +268,7 @@ export default function StudentPortal() {
       )}
 
       {/* Licence & RTO Tests */}
-      {!!student.opt_for_license && (
+      {activeTab === 'licence' && !!student.opt_for_license && (
         <div className="card p-5">
           <h2 className="mb-4 font-bold text-slate-800 flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-brand-600" />
@@ -322,16 +363,38 @@ export default function StudentPortal() {
         </div>
       )}
 
+      {/* My Documents */}
+      {activeTab === 'documents' && !!student.opt_for_license && (
+        <div className="card p-5">
+          <h2 className="mb-1 flex items-center gap-2 font-bold text-slate-800">
+            <FolderOpen className="h-5 w-5 text-brand-600" />
+            My Documents
+          </h2>
+          <p className="mb-4 text-sm text-slate-400">
+            Upload the documents needed for your licence. Images or PDF, up to 10 MB each.
+          </p>
+          <StudentDocuments documents={documents} editable onReload={reload} />
+        </div>
+      )}
+
+      {/* Profile details */}
+      {activeTab === 'profile' && !!student.opt_for_license && (
+        <LLProfileCard profile={student.ll_profile} editable onReload={reload} />
+      )}
+
       {/* Certificate of Completion */}
-      <CertificateCard
-        certificate={cert}
-        eligible={student.status === 'completed'}
-        canGenerate={student.status === 'completed'}
-        busy={certBusy}
-        onGenerate={generateCertificate}
-      />
+      {showProgress && (
+        <CertificateCard
+          certificate={cert}
+          eligible={student.status === 'completed'}
+          canGenerate={student.status === 'completed'}
+          busy={certBusy}
+          onGenerate={generateCertificate}
+        />
+      )}
 
       {/* Upcoming classes */}
+      {showClasses && (
       <div>
         <h2 className="mb-3 font-bold text-slate-800">Upcoming Classes</h2>
         {upcoming.length === 0 ? (
@@ -367,9 +430,10 @@ export default function StudentPortal() {
           </div>
         )}
       </div>
+      )}
 
       {/* Recent history */}
-      {recent.length > 0 && (
+      {showClasses && recent.length > 0 && (
         <div>
           <h2 className="mb-3 font-bold text-slate-800">Recent History</h2>
           <div className="space-y-2">

@@ -10,7 +10,7 @@ export async function onRequestGet(context) {
   if (user.role === 'student') {
     const student = await env.DB.prepare(`
       SELECT s.id, s.name, s.phone, s.email, s.address, s.license_type, s.joining_date,
-             s.status, s.photo_key, s.discount, s.stage_progress, s.opt_for_license,
+             s.status, s.photo_key, s.discount, s.stage_progress, s.opt_for_license, s.ll_profile,
              s.ll_number, s.ll_test_date, s.ll_test_time, s.ll_status, s.ll_expiry,
              s.dl_number, s.dl_test_date, s.dl_test_time, s.dl_status, s.dl_expiry,
              lli.name AS ll_instructor_name, dli.name AS dl_instructor_name,
@@ -47,6 +47,10 @@ export async function onRequestGet(context) {
 
     const certificate = await env.DB.prepare('SELECT * FROM certificates WHERE student_id = ? AND school_id = ?').bind(sub, sid).first()
 
+    const { results: documents } = await env.DB.prepare(
+      'SELECT id, doc_type, file_key, file_format, doc_number, notes, uploaded_by, created_at FROM student_documents WHERE student_id = ? AND school_id = ? ORDER BY created_at DESC'
+    ).bind(sub, sid).all()
+
     // Fetch school stages
     const school = await env.DB.prepare('SELECT stages FROM schools WHERE id = ?').bind(sid).first()
     const defaultStages = [
@@ -62,7 +66,7 @@ export async function onRequestGet(context) {
       } catch (e) {}
     }
 
-    return ok({ role: user.role, student, payments, classes, certificate: certificate || null, stages })
+    return ok({ role: user.role, student, payments, classes, certificate: certificate || null, stages, documents })
   }
 
   if (user.role === 'instructor') {

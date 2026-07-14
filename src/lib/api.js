@@ -32,6 +32,13 @@ export const api = {
     fd.append('file', file)
     if (folder) fd.append('folder', folder)
     return request('/upload', { method: 'POST', body: fd })
+  },
+  // Portal users (students/instructors) upload here — /upload is staff-only.
+  portalUpload: (file, folder) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    if (folder) fd.append('folder', folder)
+    return request('/portal/upload', { method: 'POST', body: fd })
   }
 }
 

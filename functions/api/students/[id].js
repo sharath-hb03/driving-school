@@ -29,10 +29,11 @@ export async function onRequestGet(context) {
      LEFT JOIN vehicles v ON c.vehicle_id=v.id
      WHERE c.student_id=? AND c.school_id=? ORDER BY c.scheduled_at DESC LIMIT 200`
   ).bind(params.id, sid).all()
-  const [paymentsRes, certificate, school] = await Promise.all([
+  const [paymentsRes, certificate, school, documentsRes] = await Promise.all([
     env.DB.prepare('SELECT * FROM payments WHERE student_id=? AND school_id=? ORDER BY paid_at DESC').bind(params.id, sid).all(),
     env.DB.prepare('SELECT * FROM certificates WHERE student_id=? AND school_id=?').bind(params.id, sid).first(),
-    env.DB.prepare('SELECT stages FROM schools WHERE id=?').bind(sid).first()
+    env.DB.prepare('SELECT stages FROM schools WHERE id=?').bind(sid).first(),
+    env.DB.prepare('SELECT id, doc_type, file_key, file_format, doc_number, notes, uploaded_by, created_at FROM student_documents WHERE student_id=? AND school_id=? ORDER BY created_at DESC').bind(params.id, sid).all()
   ])
 
   const defaultStages = [
@@ -54,7 +55,8 @@ export async function onRequestGet(context) {
     classes: classes.results,
     payments: paymentsRes.results,
     certificate: certificate || null,
-    stages
+    stages,
+    documents: documentsRes.results
   })
 }
 
