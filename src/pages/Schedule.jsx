@@ -22,6 +22,8 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true)
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [instructors, setInstructors] = useState([])
+  const [instructorFilter, setInstructorFilter] = useState('')
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
@@ -41,21 +43,30 @@ export default function Schedule() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekStart])
 
+  useEffect(() => {
+    api.get('/instructors?active=1').then((d) => setInstructors(d.instructors || [])).catch(() => {})
+  }, [])
+
+  const filtered = useMemo(
+    () => (instructorFilter ? classes.filter((c) => c.instructor_id === instructorFilter) : classes),
+    [classes, instructorFilter]
+  )
+
   const countByDay = useMemo(() => {
     const map = {}
-    for (const c of classes) {
+    for (const c of filtered) {
       const key = format(asDate(c.scheduled_at), 'yyyy-MM-dd')
       map[key] = (map[key] || 0) + 1
     }
     return map
-  }, [classes])
+  }, [filtered])
 
   const dayClasses = useMemo(
     () =>
-      classes
+      filtered
         .filter((c) => isSameDay(asDate(c.scheduled_at), selected))
         .sort((a, b) => asDate(a.scheduled_at) - asDate(b.scheduled_at)),
-    [classes, selected]
+    [filtered, selected]
   )
 
   const mark = async (cls, status) => {
@@ -128,6 +139,30 @@ export default function Schedule() {
         </div>
       </div>
 
+      {instructors.length > 0 && (
+        <div className="scrollbar-none -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1">
+          <button
+            onClick={() => setInstructorFilter('')}
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+              !instructorFilter ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 shadow-sm hover:bg-slate-50'
+            }`}
+          >
+            All instructors
+          </button>
+          {instructors.map((i) => (
+            <button
+              key={i.id}
+              onClick={() => setInstructorFilter((f) => (f === i.id ? '' : i.id))}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
+                instructorFilter === i.id ? 'bg-brand-600 text-white' : 'bg-white text-slate-600 shadow-sm hover:bg-slate-50'
+              }`}
+            >
+              {i.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-bold text-slate-800">
           {isToday(selected) ? 'Today' : format(selected, 'EEEE, dd MMM')}
@@ -146,7 +181,7 @@ export default function Schedule() {
       ) : dayClasses.length === 0 ? (
         <EmptyState
           icon={CalendarDays}
-          title="No classes this day"
+          title={instructorFilter ? 'No classes for this instructor' : 'No classes this day'}
           subtitle="Book a class with the button below."
         />
       ) : (

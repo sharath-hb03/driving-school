@@ -36,12 +36,22 @@ export default function Dashboard() {
     return { up: pct >= 0, pct: Math.abs(pct) }
   }, [stats])
 
+  const leadsTrend = useMemo(() => {
+    if (!stats) return null
+    const cur = stats.leadsThisMonth || 0
+    const prev = stats.leadsLastMonth || 0
+    if (prev === 0) return cur > 0 ? { up: true, pct: null } : null
+    const pct = Math.round(((cur - prev) / prev) * 100)
+    return { up: pct >= 0, pct: Math.abs(pct) }
+  }, [stats])
+
   const leadConvRate = useMemo(() => {
     if (!stats) return null
     const total = stats.leadsThisMonth || 0
     const conv = stats.leadsConvertedThisMonth || 0
     return total > 0 ? Math.round((conv / total) * 100) : 0
   }, [stats])
+
 
   const getWhatsAppLink = (e) => {
     const schoolName = user?.school_name || 'our driving school'
@@ -203,8 +213,16 @@ export default function Dashboard() {
                     <MessageSquare className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className="text-base font-extrabold text-slate-800">{stats.leadsThisMonth}</p>
-                    <p className="text-xs text-slate-400 truncate">Leads Received</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-base font-extrabold text-slate-800">{stats.leadsThisMonth}</p>
+                      {leadsTrend && (
+                        <span className={`flex items-center gap-0.5 text-[11px] font-bold ${leadsTrend.up ? 'text-emerald-600' : 'text-rose-500'}`}>
+                          {leadsTrend.up ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                          {leadsTrend.pct == null ? 'new' : `${leadsTrend.pct}%`}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 truncate">Leads Received · {stats.leadsLastMonth ?? 0} last month</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">

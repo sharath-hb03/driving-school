@@ -38,8 +38,8 @@ export async function onRequestGet(context) {
     DB.prepare("SELECT COUNT(*) AS n FROM students WHERE school_id=? AND substr(joining_date,1,7)=?").bind(schoolId,monthPrefix).first(),
     DB.prepare("SELECT COUNT(*) AS n FROM classes WHERE school_id=? AND status='attended' AND substr(scheduled_at,1,7)=?").bind(schoolId,monthPrefix).first(),
     DB.prepare(`SELECT COALESCE(SUM(CASE WHEN status='attended' THEN 1 ELSE 0 END),0) AS attended,
-      COALESCE(SUM(CASE WHEN status IN ('attended','absent') THEN 1 ELSE 0 END),0) AS marked
-      FROM classes WHERE school_id=? AND substr(scheduled_at,1,7)=?`).bind(schoolId,monthPrefix).first(),
+      COALESCE(SUM(CASE WHEN status!='cancelled' THEN 1 ELSE 0 END),0) AS held
+      FROM classes WHERE school_id=? AND substr(scheduled_at,1,7)=? AND substr(scheduled_at,1,10)<?`).bind(schoolId,monthPrefix,today).first(),
     DB.prepare("SELECT COUNT(*) AS n FROM classes WHERE school_id=? AND status='scheduled' AND substr(scheduled_at,1,10)>? AND substr(scheduled_at,1,10)<=date(?,'+ 7 days')").bind(schoolId,today,today).first(),
     DB.prepare("SELECT COALESCE(SUM(amount),0) AS amount FROM payments WHERE school_id=? AND substr(paid_at,1,7)=?").bind(schoolId,lastMonth).first(),
     DB.prepare("SELECT COUNT(*) AS n FROM enquiries WHERE school_id=? AND status='new'").bind(schoolId).first(),
@@ -75,7 +75,7 @@ export async function onRequestGet(context) {
       vehiclesTotal: vehicles.total, instructorsActive: instructors.n,
       docsExpiringSoon: docsExpiring.n, newStudentsThisMonth: newStudents.n,
       lessonsCompletedThisMonth: lessonsDone.n, upcomingClasses7d: upcoming7.n,
-      attendanceRate: attendance.marked > 0 ? Math.round((attendance.attended/attendance.marked)*100) : null,
+      attendanceRate: attendance.held > 0 ? Math.round((attendance.attended/attendance.held)*100) : null,
       newEnquiries: newEnquiries.n,
       
       // Additional stats

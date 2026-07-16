@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, Car, CheckCircle2, XCircle, Clock, ChevronRight, ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { api } from '../lib/api'
@@ -8,6 +8,8 @@ import { fmtDate, fmtClock } from '../lib/format'
 import WeekSchedule from '../components/WeekSchedule'
 import { Badge, Spinner, Avatar, Segmented, SearchInput } from '../components/ui'
 import DatePicker from '../components/DatePicker'
+import Modal from '../components/Modal'
+import { TextInput, Select } from '../components/Field'
 
 const STATUS_COLOR = { passed: 'green', failed: 'red', pending: 'blue' }
 const STATUS_LABEL = { passed: 'Passed', failed: 'Failed', pending: 'Scheduled' }
@@ -16,14 +18,105 @@ const STATUS_ICON  = { passed: CheckCircle2, failed: XCircle, pending: Clock }
 const TYPE_COLOR = { LL: 'violet', DL: 'cyan' }
 const TYPE_ICON  = { LL: ShieldCheck, DL: Car }
 
+/* Popup shown after moving a student into a test stage (LL / DL) */
+function ScheduleTestModal({ target, onClose, onSaved }) {
+  const open = !!target
+  const [form, setForm] = useState({ test_date: '', test_time: '', instructor_id: '' })
+  const [busy, setBusy] = useState(false)
+  const [instructors, setInstructors] = useState([])
+
+  useEffect(() => {
+    if (!open) return
+    setForm({ test_date: '', test_time: '', instructor_id: '' })
+    api.get('/instructors?active=1').then((d) => setInstructors(d.instructors || [])).catch(() => {})
+  }, [open, target?.student?.id])
+
+  if (!open) return null
+
+  const { student, type } = target
+  const TypeIcon = type === 'll' ? ShieldCheck : Car
+  const testName = type === 'll' ? "LL Test" : 'DL Test'
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  const save = async (e) => {
+    e.preventDefault()
+    if (!form.test_date) return toast.error('Pick a test date')
+    setBusy(true)
+    try {
+      await api.post(`/students/${student.id}/tests`, {
+        type,
+        test_date: form.test_date,
+        test_time: form.test_time || null,
+        status: 'pending'
+      })
+      if (form.instructor_id) {
+        await api.put(`/students/${student.id}`, { [`${type}_instructor_id`]: form.instructor_id })
+      }
+      toast.success(`${testName} scheduled for ${student.name}`)
+      onSaved?.()
+      onClose()
+    } catch (err) {
+      toast.error(err.message || 'Failed to schedule test')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Schedule ${testName}`}
+      size="sm"
+      footer={
+        <div className="flex gap-3">
+          <button type="button" className="btn-ghost flex-1" onClick={onClose}>Later</button>
+          <button form="schedule-test-form" type="submit" className="btn-primary flex-1" disabled={busy}>
+            {busy ? <Spinner className="h-4 w-4" /> : 'Schedule'}
+          </button>
+        </div>
+      }
+    >
+      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-3">
+        <Avatar name={student.name} size={38} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-slate-800">{student.name}</p>
+          <p className="flex items-center gap-1 text-xs text-slate-500">
+            <TypeIcon className="h-3.5 w-3.5" />
+            {type === 'll' ? "Ready for Learner's Licence test" : 'Ready for Driving Licence test'}
+          </p>
+        </div>
+      </div>
+      <form id="schedule-test-form" onSubmit={save}>
+        <div className="grid grid-cols-2 gap-3">
+          <TextInput label="Test date" type="date" required
+            value={form.test_date} onChange={set('test_date')} />
+          <TextInput label="Time" type="time" hint="Optional"
+            value={form.test_time} onChange={set('test_time')} />
+        </div>
+        <Select label="Instructor" placeholder="Unassigned" hint="Optional"
+          value={form.instructor_id} onChange={set('instructor_id')}
+          options={instructors.map((i) => ({ value: i.id, label: i.name }))} />
+      </form>
+    </Modal>
+  )
+}
+
 export default function TestSchedule() {
   const navigate = useNavigate()
-  const [viewMode, setViewMode] = useState('schedule') // 'schedule' | 'stages'
+  // Tab + active stage live in the URL so browser back returns to the same view
+  const [searchParams, setSearchParams] = useSearchParams()
+  const viewMode = searchParams.get('view') === 'stages' ? 'stages' : 'schedule' // 'schedule' | 'stages'
+  const activeStageId = searchParams.get('stage') || ''
+  const setViewMode = (v) =>
+    setSearchParams(v === 'stages' ? { view: 'stages' } : {}, { replace: true })
+  const setActiveStageId = (id) =>
+    setSearchParams({ view: 'stages', stage: id }, { replace: true })
   const [students, setStudents] = useState([])
   const [stages, setStages] = useState([])
   const [loadingStages, setLoadingStages] = useState(false)
-  const [activeStageId, setActiveStageId] = useState('')
   const [stagesQuery, setStagesQuery] = useState('')
+  const [testTarget, setTestTarget] = useState(null) // { student, type: 'll' | 'dl' }
 
   const monthRange = useMemo(() => {
     const today = new Date()
@@ -61,10 +154,11 @@ export default function TestSchedule() {
   }, [viewMode])
 
   useEffect(() => {
-    if (stages.length > 0 && !activeStageId) {
+    if (viewMode === 'stages' && stages.length > 0 && !activeStageId) {
       setActiveStageId(stages[0].id)
     }
-  }, [stages, activeStageId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, stages, activeStageId])
 
   const getStageEntryDate = (student, stageId, stagesList) => {
     let progress = {}
@@ -247,6 +341,15 @@ export default function TestSchedule() {
       await api.put(`/students/${s.id}`, { stage_progress: newProgress })
       toast.success(`Moved ${s.name} to next stage!`)
       loadStagesData()
+
+      // If the student just entered a test stage, offer to schedule the test right away
+      const idx = stages.findIndex(st => st.id === currentStageId)
+      const nextStageId = stages[idx + 1]?.id
+      if (nextStageId === llStageId && s.ll_status !== 'pending') {
+        setTestTarget({ student: s, type: 'll' })
+      } else if (nextStageId === dlStageId && s.dl_status !== 'pending') {
+        setTestTarget({ student: s, type: 'dl' })
+      }
     } catch (err) {
       toast.error(err.message || 'Failed to move stage')
     }
@@ -269,7 +372,7 @@ export default function TestSchedule() {
     return (
       <div className="space-y-4">
         {/* Responsive, stacked filter bar */}
-        <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm space-y-3.5">
+        <div className="bg-white p-3 sm:p-4 rounded-2xl border border-slate-100 shadow-sm space-y-2.5 sm:space-y-3.5">
           {/* Stages pill navigation */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full shrink-0">
             {allTabs.map((tab) => {
@@ -292,40 +395,40 @@ export default function TestSchedule() {
             })}
           </div>
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-1">
-            <div className="w-full sm:w-72">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:pt-1">
+            <div className="w-full sm:w-64">
               <SearchInput
                 value={stagesQuery}
                 onChange={setStagesQuery}
-                placeholder="Search students in stage…"
+                placeholder="Search students…"
               />
             </div>
-            {/* Date range filters */}
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">From</span>
-                <DatePicker
-                  inputClassName="py-1.5 px-3 text-xs w-38 bg-slate-50 border-slate-200 rounded-xl"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">To</span>
-                <DatePicker
-                  inputClassName="py-1.5 px-3 text-xs w-38 bg-slate-50 border-slate-200 rounded-xl"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                />
-              </div>
-              <button
-                type="button"
-                disabled={!fromDate && !toDate}
-                onClick={() => { setFromDate(''); setToDate('') }}
-                className="rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 disabled:opacity-40 px-3.5 py-1.5 text-xs font-semibold transition active:scale-[.98]"
-              >
-                Clear
-              </button>
+            {/* Date range filter */}
+            <div className="flex items-center gap-2 text-xs">
+              <DatePicker
+                className="flex-1 sm:w-36"
+                placeholder="From date"
+                inputClassName="py-1.5 px-3 text-xs bg-slate-50 border-slate-200 rounded-xl"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+              />
+              <span className="shrink-0 text-slate-400">–</span>
+              <DatePicker
+                className="flex-1 sm:w-36"
+                placeholder="To date"
+                inputClassName="py-1.5 px-3 text-xs bg-slate-50 border-slate-200 rounded-xl"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+              />
+              {(fromDate || toDate) && (
+                <button
+                  type="button"
+                  onClick={() => { setFromDate(''); setToDate('') }}
+                  className="shrink-0 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 text-xs font-semibold transition active:scale-[.98]"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -392,7 +495,7 @@ export default function TestSchedule() {
 
   return (
     <div className="page-enter">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:gap-4 sm:mb-5">
         <PageHeader
           title="Test &amp; Progress"
           subtitle="Test schedule &amp; student stages pipeline"
@@ -447,6 +550,12 @@ export default function TestSchedule() {
       ) : (
         renderStagesHub()
       )}
+
+      <ScheduleTestModal
+        target={testTarget}
+        onClose={() => setTestTarget(null)}
+        onSaved={loadStagesData}
+      />
     </div>
   )
 }

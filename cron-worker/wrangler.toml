@@ -14,6 +14,6 @@ workers_dev = false
 crons = ["*/15 * * * *"]
 
 [vars]
-CRON_TARGET_URL = "https://dsms-mt.pages.dev/api/notify/cron"
+CRON_TARGET_URL = "https://instrukt.pages.dev/api/notify/cron"
 # CRON_SECRET is a secret, not a var — set it with:
 #   npx wrangler secret put CRON_SECRET

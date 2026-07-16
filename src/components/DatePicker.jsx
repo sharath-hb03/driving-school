@@ -250,23 +250,24 @@ export default function DatePicker({
           type="button"
           disabled={inputDisabled}
           onClick={() => setOpen((o) => !o)}
-          className={`input flex items-center justify-between text-left cursor-pointer pr-10 ${
+          className={`input flex items-center text-left cursor-pointer pr-9 ${
             inputDisabled ? 'bg-slate-50 cursor-not-allowed text-slate-400' : ''
           } ${open ? 'border-brand-500 ring-2 ring-brand-100' : ''} ${inputClassName}`}
         >
-          <span className={formattedDisplay ? 'text-slate-800' : 'text-slate-400'}>
+          <span className={`truncate ${formattedDisplay ? 'text-slate-800' : 'text-slate-400'}`}>
             {formattedDisplay || placeholder}
           </span>
-          <Calendar className="h-4.5 w-4.5 shrink-0 text-slate-400" />
         </button>
-        {formattedDisplay && !required && !inputDisabled && (
+        {formattedDisplay && !required && !inputDisabled ? (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-10 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
           >
             <X className="h-3.5 w-3.5" />
           </button>
+        ) : (
+          <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         )}
       </div>
 
