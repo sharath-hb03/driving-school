@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { Spinner } from '../components/ui'
 import { api } from '../lib/api'
 import SchoolLogo from '../components/SchoolLogo'
+import InstallButton from '../components/InstallButton'
 
 export default function Login() {
   const { login } = useAuth()
@@ -14,25 +15,25 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [show, setShow] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [schoolName, setSchoolName] = useState(() => localStorage.getItem('dsms_school_name') || 'DriveSchool Manager')
-  const [schoolLogo, setSchoolLogo] = useState(() => localStorage.getItem('dsms_school_logo') || null)
+  const [schoolName, setSchoolName] = useState(() => localStorage.getItem('instrukt_school_name') || 'Instrukt')
+  const [schoolLogo, setSchoolLogo] = useState(() => localStorage.getItem('instrukt_school_logo') || null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const slug = params.get('school') || localStorage.getItem('dsms_school_slug')
+    const slug = params.get('school') || localStorage.getItem('instrukt_school_slug')
     if (slug) {
       api.get(`/public/school?slug=${encodeURIComponent(slug)}`)
         .then(data => {
           if (data?.school?.name) {
             setSchoolName(data.school.name)
-            localStorage.setItem('dsms_school_name', data.school.name)
+            localStorage.setItem('instrukt_school_name', data.school.name)
             document.title = data.school.name
             const metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]')
             if (metaTitle) metaTitle.setAttribute('content', data.school.name)
           }
           setSchoolLogo(data?.school?.logo_url || null)
-          if (data?.school?.logo_url) localStorage.setItem('dsms_school_logo', data.school.logo_url)
-          else localStorage.removeItem('dsms_school_logo')
+          if (data?.school?.logo_url) localStorage.setItem('instrukt_school_logo', data.school.logo_url)
+          else localStorage.removeItem('instrukt_school_logo')
         })
         .catch(err => {
           console.error('Failed to load school branding:', err)
@@ -94,6 +95,10 @@ export default function Login() {
             {busy ? <Spinner className="h-5 w-5" /> : 'Sign in'}
           </button>
         </form>
+
+        <div className="mt-5 flex justify-center">
+          <InstallButton />
+        </div>
 
         <p className="mt-6 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
           <Shield className="h-3.5 w-3.5" /> Secure multi-tenant platform · Works offline

@@ -1,5 +1,5 @@
 -- ============================================================
--- Multi-Tenant DSMS — D1 (SQLite) schema
+-- Instrukt — multi-tenant D1 (SQLite) schema
 -- Run: npm run db:local   (local)   /   npm run db:remote   (prod)
 -- ============================================================
 

@@ -145,20 +145,22 @@ export default function InstallButton({ className = '' }) {
   if (isInstalled || isStandalone) return null
 
   // Resolve current school name for instructions
-  const schoolName = user?.school_name || localStorage.getItem('dsms_school_name') || 'DriveSchool'
+  const schoolName = user?.school_name || localStorage.getItem('instrukt_school_name') || 'Instrukt'
 
   const handleClick = async () => {
-    if (isIOS) {
-      setShowIOSModal(true)
-      return
-    }
-    if (deferredPrompt) {
+    // Prefer the live captured prompt over possibly-stale React state so a
+    // one-tap native install fires whenever the browser actually supports it.
+    const prompt = window.__pwaInstallPrompt || deferredPrompt
+    if (prompt) {
       setInstalling(true)
       await install()
       setInstalling(false)
-    } else {
-      setShowBrowserModal(true)
+      return
     }
+    // No programmatic install available on this browser (iOS Safari, Firefox,
+    // desktop Safari, or criteria not yet met) — fall back to instructions.
+    if (isIOS) setShowIOSModal(true)
+    else setShowBrowserModal(true)
   }
 
   return (

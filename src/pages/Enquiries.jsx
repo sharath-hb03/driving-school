@@ -12,8 +12,8 @@ import StudentForm from '../components/StudentForm'
 import Modal from '../components/Modal'
 
 const SOURCE_OPTS = [
-  { value: 'web', label: 'Website' },
-  { value: 'manual', label: 'Walk-in' }
+  { value: 'manual', label: 'Walk-in' },
+  { value: 'web', label: 'Website' }
 ]
 
 // Compact "time ago" — stored timestamps are UTC without a zone marker

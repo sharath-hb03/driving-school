@@ -63,7 +63,7 @@ export async function cloudinaryUpload(file, env, opts = {}) {
   const apiSecret   = env.CLOUDINARY_API_SECRET
   if (!cloudName || !apiKey || !apiSecret) throw new Error('Cloudinary credentials not configured')
 
-  const folder        = opts.folder        || 'dsms'
+  const folder        = opts.folder        || 'instrukt'
   const resource_type = opts.resource_type || 'auto'
   const timestamp     = String(Math.round(Date.now() / 1000))
 

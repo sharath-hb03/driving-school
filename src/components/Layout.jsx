@@ -40,7 +40,7 @@ export default function Layout({ children }) {
         <div className="mb-6 flex items-center gap-2.5 px-2">
           <SchoolLogo src={user?.school_logo} size={36} />
           <div>
-            <p className="text-sm font-extrabold leading-tight text-slate-800">{user?.school_name || 'DriveSchool'}</p>
+            <p className="text-sm font-extrabold leading-tight text-slate-800">{user?.school_name || 'Instrukt'}</p>
             <p className="text-xs text-slate-400">Manager</p>
           </div>
         </div>

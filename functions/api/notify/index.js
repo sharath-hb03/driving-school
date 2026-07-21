@@ -38,7 +38,7 @@ export async function onRequestPost(context) {
   if (!subscriptionIds.length) return ok({ sent: false, reason: 'No push subscriptions found' })
 
   const result = await sendPush(env, {
-    heading: body.heading || 'DriveSchool',
+    heading: body.heading || 'Instrukt',
     message: body.message,
     url: body.url,
     subscriptionIds

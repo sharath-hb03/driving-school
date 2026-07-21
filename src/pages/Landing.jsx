@@ -61,7 +61,7 @@ const HIGHLIGHTS = [
   {
     icon: Smartphone,
     title: 'Installable app that works offline',
-    desc: 'Install DriveSchool Manager to a phone home screen like a native app. Core screens keep working when the connection drops.',
+    desc: 'Install Instrukt to a phone home screen like a native app. Core screens keep working when the connection drops.',
   },
   {
     icon: ShieldCheck,
@@ -77,7 +77,7 @@ function Logo() {
         <Building2 className="h-5 w-5 text-white" />
       </div>
       <span className="text-lg font-extrabold tracking-tight text-slate-900">
-        DriveSchool <span className="text-brand-600">Manager</span>
+        Instrukt
       </span>
     </div>
   )
@@ -172,7 +172,7 @@ export default function Landing() {
                 Interested for your school?
               </h2>
               <p className="mt-3 text-slate-600">
-                Already have an account? Sign in below. To get DriveSchool Manager set up for your
+                Already have an account? Sign in below. To get Instrukt set up for your
                 school, get in touch and we’ll help you get started.
               </p>
               <div className="mt-6">
@@ -217,7 +217,7 @@ export default function Landing() {
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row">
           <Logo />
           <p className="text-sm text-slate-400">
-            © {new Date().getFullYear()} DriveSchool Manager
+            © {new Date().getFullYear()} Instrukt
           </p>
         </div>
       </footer>

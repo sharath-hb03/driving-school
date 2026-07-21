@@ -65,7 +65,7 @@ function Home() {
   if (loading) return <PageLoader />
   if (!user) {
     const params = new URLSearchParams(window.location.search)
-    const slug = params.get('school') || localStorage.getItem('dsms_school_slug')
+    const slug = params.get('school') || localStorage.getItem('instrukt_school_slug')
     if (slug) {
       return <Navigate to={`/login?school=${encodeURIComponent(slug)}`} replace />
     }

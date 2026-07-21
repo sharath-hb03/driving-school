@@ -194,7 +194,7 @@ export async function issueCertificate(env, studentId, schoolId, { issuedBy = 's
     signatoryName: signatoryNameResolved
   })
 
-  const publicId = `dsms/${schoolId}/certificates/${studentId}`
+  const publicId = `instrukt/${schoolId}/certificates/${studentId}`
   const upload = await uploadDataUri(env, {
     dataUri: svgDataUri(svg),
     publicId,

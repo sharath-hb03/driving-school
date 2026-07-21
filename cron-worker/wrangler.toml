@@ -1,4 +1,4 @@
-# Companion Worker: fires the DSMS reminder cron on a schedule.
+# Companion Worker: fires the Instrukt reminder cron on a schedule.
 # Deployed separately from the Pages app (Pages Functions can't run cron triggers).
 #   Deploy: cd cron-worker && npx wrangler deploy
 #   Secret: npx wrangler secret put CRON_SECRET   (same value as the Pages CRON_SECRET)

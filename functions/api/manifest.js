@@ -7,8 +7,8 @@ export async function onRequestGet(context) {
   const url  = new URL(request.url)
   const slug = url.searchParams.get('slug') || ''
 
-  let name       = 'DriveSchool Manager'
-  let short_name = 'DriveSchool'
+  let name       = 'Instrukt'
+  let short_name = 'Instrukt'
   let start_url  = '/login'
   let logo_key   = null
 

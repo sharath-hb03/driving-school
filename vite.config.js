@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'DriveSchool Manager',
-        short_name: 'DriveSchool',
-        description: 'Multi-Tenant Driving School Management System',
+        name: 'Instrukt',
+        short_name: 'Instrukt',
+        description: 'Instrukt — multi-tenant driving school management system',
         start_url: '/login',
         scope: '/',
         display: 'standalone',

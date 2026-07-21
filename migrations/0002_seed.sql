@@ -12,7 +12,7 @@
 INSERT OR IGNORE INTO super_admins (id, email, name, password_hash)
 VALUES (
   'super_1',
-  'admin@dsms.app',
+  'admin@instrukt.app',
   'Super Admin',
   'cab75dcf0878b295d3c9fdcb35447262:3847cd8aafcc282c3bad329e84cf3506fb4e9576d504f4f31aaa91a32fe9c9fb'
 );

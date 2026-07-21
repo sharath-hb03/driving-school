@@ -7,9 +7,9 @@ const AuthContext = createContext(null)
 function applySchoolManifest(user) {
   if (!user?.school_slug) return
   // Store so index.html script picks it up on next cold open
-  localStorage.setItem('dsms_school_slug', user.school_slug)
-  const appName = user.school_name || 'DriveSchool'
-  localStorage.setItem('dsms_school_name', appName)
+  localStorage.setItem('instrukt_school_slug', user.school_slug)
+  const appName = user.school_name || 'Instrukt'
+  localStorage.setItem('instrukt_school_name', appName)
   document.title = appName
   document
     .querySelector('meta[name="apple-mobile-web-app-title"]')
@@ -57,9 +57,9 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     await api.post('/auth/logout')
-    localStorage.removeItem('dsms_school_slug')
-    localStorage.removeItem('dsms_school_name')
-    localStorage.removeItem('dsms_school_logo')
+    localStorage.removeItem('instrukt_school_slug')
+    localStorage.removeItem('instrukt_school_name')
+    localStorage.removeItem('instrukt_school_logo')
     setUser(null)
   }
 

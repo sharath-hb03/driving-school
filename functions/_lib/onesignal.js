@@ -27,7 +27,7 @@ export async function sendPush(env, { heading, message, url, subscriptionIds }) 
   const body = {
     app_id: appId,
     include_subscription_ids: tokens,
-    headings: { en: heading || 'DriveSchool' },
+    headings: { en: heading || 'Instrukt' },
     contents: { en: message },
     ...(url ? { web_url: url } : {})
   }

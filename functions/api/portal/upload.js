@@ -27,7 +27,7 @@ export async function onRequestPost(context) {
 
   const rawFolder = formData.get('folder')
   const sub = typeof rawFolder === 'string' ? rawFolder.replace(/[^a-z0-9_-]/gi, '').slice(0, 40) : ''
-  const folder = `dsms/${data.schoolId || 'common'}${sub ? `/${sub}` : ''}`
+  const folder = `instrukt/${data.schoolId || 'common'}${sub ? `/${sub}` : ''}`
 
   try {
     const result = await cloudinaryUpload(file, env, { folder })

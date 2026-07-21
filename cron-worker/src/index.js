@@ -1,4 +1,4 @@
-// Scheduled Worker that pings the DSMS reminder endpoint with the secure header.
+// Scheduled Worker that pings the Instrukt reminder endpoint with the secure header.
 // The secret never appears in a URL — it's sent as X-Cron-Secret.
 
 async function runCron(env) {
@@ -29,7 +29,7 @@ export default {
 
   // Health check only — does NOT trigger the cron, so it stays safe to leave open.
   async fetch(request, env) {
-    return new Response('dsms-mt-cron worker is alive', {
+    return new Response('instrukt cron worker is alive', {
       status: 200,
       headers: { 'Content-Type': 'text/plain' }
     })

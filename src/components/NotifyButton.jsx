@@ -125,11 +125,9 @@ export default function NotifyButton({ className = '' }) {
   if (status === 'checking') return null
 
   const enable = async () => {
-    // The permission prompt can't be re-shown once denied — guide the user instead.
-    if (isDenied()) {
-      setShowUnblock(true)
-      return
-    }
+    // Always attempt the real permission prompt first — even after a deny.
+    // Browsers that hard-block will resolve instantly with 'denied', and only
+    // then do we fall back to the unblock walkthrough.
     setStatus('working')
     const perm = await promptNotifications()
     if (perm === true || perm === 'granted') {
