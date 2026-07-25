@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "pages:dev": "npm run build && wrangler pages dev dist --d1=DB --kv=CACHE --r2=FILES --port=8788",
+    "pages:dev": "npm run build && wrangler pages dev dist --port=8788",
     "pages:deploy": "npm run build && wrangler pages deploy dist",
     "db:local": "wrangler d1 execute dsms-mt-db --local --file=./migrations/0001_init.sql",
     "db:seed:local": "wrangler d1 execute dsms-mt-db --local --file=./migrations/0002_seed.sql",
