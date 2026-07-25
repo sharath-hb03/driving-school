@@ -12,7 +12,9 @@
     "db:local": "wrangler d1 execute dsms-mt-db --local --file=./migrations/0001_init.sql",
     "db:seed:local": "wrangler d1 execute dsms-mt-db --local --file=./migrations/0002_seed.sql",
     "db:remote": "wrangler d1 execute dsms-mt-db --remote --file=./migrations/0001_init.sql",
-    "db:seed:remote": "wrangler d1 execute dsms-mt-db --remote --file=./migrations/0002_seed.sql"
+    "db:seed:remote": "wrangler d1 execute dsms-mt-db --remote --file=./migrations/0002_seed.sql",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "date-fns": "^3.6.0",
@@ -23,6 +25,7 @@
     "react-router-dom": "^6.26.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.45",

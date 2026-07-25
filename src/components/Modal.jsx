@@ -14,7 +14,7 @@ export default function Modal({ open, onClose, title, children, footer, size = '
   const maxW = size === 'xl' ? 'sm:max-w-4xl' : size === 'lg' ? 'sm:max-w-2xl' : size === 'sm' ? 'sm:max-w-sm' : 'sm:max-w-lg'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" data-testid="modal">
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose} />
       <div
         className={`relative z-10 flex max-h-[92vh] w-full ${maxW} flex-col rounded-t-3xl bg-white shadow-soft sm:rounded-3xl`}

@@ -36,3 +36,8 @@ Thumbs.db
 
 Driving_Schools_Lead_Database.xlsx
 school_list.py
+
+# Playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
