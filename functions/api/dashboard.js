@@ -1,13 +1,43 @@
 // GET /api/dashboard?date=YYYY-MM-DD  (school-scoped)
-import { ok } from '../_lib/utils.js'
 
+// The heaviest endpoint in the app: 21 queries, several of which scan the school's
+// entire class history because the date filters wrap the column in substr(). Admins
+// leave the page open and refresh it, so a short edge cache removes most of that load.
 const CACHE_TTL = 30
+
+// Edge Cache API rather than the CACHE KV binding: KV's free tier allows 1,000 writes
+// per day, and a 30s TTL needs ~2,880 writes/day for a single school. The Cache API has
+// no write quota. It is per-colo, and a no-op on *.pages.dev — serving from a custom
+// domain is required for it to actually store anything.
+//
+// The request URL is identical for every tenant, so it can't be the key — that would
+// serve one school's dashboard to another. Key on school + date instead.
+const cacheKeyFor = (schoolId, date) =>
+  new Request(`https://dashboard.cache/${encodeURIComponent(schoolId)}/${date}`)
+
+// The stored copy carries max-age so the edge expires it; the copy sent to the browser
+// carries no-store, so per-school data never lingers in a shared or browser cache.
+function respond(body, state) {
+  return new Response(body, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'x-cache': state
+    }
+  })
+}
 
 export async function onRequestGet(context) {
   const { env, request, data, waitUntil } = context
   const schoolId = data.schoolId
   const url = new URL(request.url)
   const today = url.searchParams.get('date') || new Date().toISOString().slice(0, 10)
+
+  const cache = caches.default
+  const cacheKey = cacheKeyFor(schoolId, today)
+  const hit = await cache.match(cacheKey)
+  if (hit) return respond(await hit.text(), 'HIT')
+
   const monthPrefix = today.slice(0, 7)
   const shiftMonth = (ymd, d) => {
     const [y, m] = ymd.slice(0,7).split('-').map(Number)
@@ -66,7 +96,8 @@ export async function onRequestGet(context) {
     DB.prepare("SELECT * FROM enquiries WHERE school_id=? AND status IN ('new','contacted') ORDER BY created_at DESC LIMIT 3").bind(schoolId).all(),
   ])
 
-  return ok({
+  const body = JSON.stringify({
+    ok: true,
     stats: {
       totalStudents: totalStudents.n, activeLearners: activeLearners.n,
       todayClasses: todayCount.n, pendingPaymentsCount: pending.n,
@@ -88,4 +119,13 @@ export async function onRequestGet(context) {
     todayClasses: todayClassesRes.results,
     recentLeads: recentLeadsRes.results,
   })
+
+  waitUntil(cache.put(cacheKey, new Response(body, {
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': `max-age=${CACHE_TTL}`
+    }
+  })))
+
+  return respond(body, 'MISS')
 }
