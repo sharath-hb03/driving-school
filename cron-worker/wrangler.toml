@@ -9,9 +9,11 @@ compatibility_date = "2024-09-23"
 # Cron-only Worker — no public HTTP route needed, so don't publish a workers.dev URL.
 workers_dev = false
 
-# Every 15 minutes — frequent enough for the 1-hour class reminder window.
+# Every 30 minutes. The reminder windows in /api/notify/cron are 90 minutes ('1h') and
+# 90min–26h ('1d'), so a 30-minute cadence still catches every class with room to spare —
+# and halves the D1 rows this scan reads against the free-tier daily budget.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = ["*/30 * * * *"]
 
 [vars]
 CRON_TARGET_URL = "https://instrukt.pages.dev/api/notify/cron"
