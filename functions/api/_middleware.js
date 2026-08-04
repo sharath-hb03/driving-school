@@ -14,12 +14,24 @@ const SUPER_ADMIN_PREFIX = '/api/super-admin/'
 const PORTAL_PREFIX = '/api/portal/'
 const STAFF_ROLES = new Set(['admin', 'staff'])
 
+// Endpoints an externally hosted site may call from the browser.
+const CORS_PATHS = new Set(['/api/enquiries', '/api/public/school'])
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type',
+  'access-control-max-age': '86400',
+}
+
 export async function onRequest(context) {
   const { request, next, env } = context
   const url = new URL(request.url)
   const path = url.pathname
+  const corsable = CORS_PATHS.has(path) || path.startsWith('/api/public/')
 
-  if (request.method === 'OPTIONS') return new Response(null, { status: 204 })
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsable ? CORS_HEADERS : {} })
+  }
 
   // Public enquiry form (POST only — no auth needed for public form submission)
   const isPublicEnquiry = path === '/api/enquiries' && request.method === 'POST'
@@ -32,7 +44,11 @@ export async function onRequest(context) {
     if (user && user.school_id) {
       context.data.schoolId = user.school_id
     }
-    return next()
+    const res = await next()
+    if (!corsable) return res
+    const withCors = new Response(res.body, res)
+    for (const [k, v] of Object.entries(CORS_HEADERS)) withCors.headers.set(k, v)
+    return withCors
   }
 
   // Auth logout allowed for everyone
