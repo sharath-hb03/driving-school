@@ -14,6 +14,19 @@ export async function onRequestGet(context) {
   return ok({ enquiries: results })
 }
 
+// Public landing pages spell the source their own way ('website', 'Walk-In').
+// Fold the known spellings onto the two values the Leads Hub groups by; keep
+// anything genuinely different (e.g. a campaign name) rather than discarding it.
+const SOURCE_ALIASES = {
+  web: 'web', website: 'web', online: 'web',
+  manual: 'manual', walkin: 'manual', 'walk-in': 'manual',
+}
+function normalizeSource(raw) {
+  const value = String(raw ?? '').trim().toLowerCase()
+  if (!value) return 'web'
+  return SOURCE_ALIASES[value] || value
+}
+
 export async function onRequestPost(context) {
   const { env, data, request } = context
   const body = await readJson(request)
@@ -31,7 +44,7 @@ export async function onRequestPost(context) {
   if (!sid) return badRequest('school_slug required for public form')
 
   const eId = id('enq_')
-  const source = body.source || 'web'
+  const source = normalizeSource(body.source)
   const notes = body.staff_notes || body.notes || null
 
   await env.DB.prepare('INSERT INTO enquiries (id,school_id,name,phone,message,staff_notes,source) VALUES (?,?,?,?,?,?,?)')

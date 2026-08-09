@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import { MessageCircle, Phone, Plus, MessageSquare, Edit, Trash2, UserPlus, CheckCircle, StickyNote, ChevronDown, RotateCcw, Check, X, Globe, Store } from 'lucide-react'
 import { useApi } from '../lib/useApi'
@@ -10,11 +10,17 @@ import { useAuth } from '../context/AuthContext'
 import { useConfirm } from '../components/ConfirmDialog'
 import StudentForm from '../components/StudentForm'
 import Modal from '../components/Modal'
+import { takeSharedContact } from '../lib/shareTarget'
 
 const SOURCE_OPTS = [
   { value: 'manual', label: 'Walk-in' },
   { value: 'web', label: 'Website' }
 ]
+
+// External landing pages post whatever they like as the source ('website',
+// 'facebook', …). Anything that isn't a logged walk-in belongs under Website:
+// matching the stored value exactly used to hide those leads from every tab.
+const sourceBucket = (source) => (String(source || '').toLowerCase() === 'manual' ? 'manual' : 'web')
 
 // Compact "time ago" — stored timestamps are UTC without a zone marker
 function ago(value) {
@@ -64,6 +70,17 @@ export default function Enquiries() {
   const [addForm, setAddForm] = useState({ name: '', phone: '', message: '', staff_notes: '' })
   const [editForm, setEditForm] = useState({ id: '', name: '', phone: '', message: '', staff_notes: '' })
 
+  // Arrived here from the phone's share sheet — open Add Lead on the shared
+  // contact so the user only has to review it and save.
+  useEffect(() => {
+    const shared = takeSharedContact()
+    if (!shared) return
+    setAddForm({ name: shared.name || '', phone: shared.phone || '', message: '', staff_notes: '' })
+    setActiveSource('manual')
+    setShowAddModal(true)
+    if (!shared.phone) toast('No phone number in that contact — add one to save the lead.')
+  }, [])
+
   // Filter by source + date range
   const dateFilteredLeads = useMemo(() => {
     const now = new Date()
@@ -77,7 +94,7 @@ export default function Enquiries() {
     const lastMonthStr = prevDate.toISOString().slice(0, 7)
 
     return enquiries.filter(e => {
-      if ((e.source || 'web') !== activeSource) return false
+      if (sourceBucket(e.source) !== activeSource) return false
       if (!e.created_at) return false
       const datePart = e.created_at.slice(0, 10)
       const monthPart = e.created_at.slice(0, 7)

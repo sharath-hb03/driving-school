@@ -55,6 +55,22 @@ export async function onRequestGet(context) {
     background_color: '#f8fafc',
     theme_color: '#4f46e5',
     icons,
+    // Puts the app in Android's share sheet: sharing a contact from the
+    // phonebook opens Add Lead prefilled. Keep in sync with vite.config.js —
+    // an installed school PWA is built from this manifest, not the static one.
+    share_target: {
+      action: '/share-target',
+      method: 'POST',
+      enctype: 'multipart/form-data',
+      params: {
+        title: 'title',
+        text: 'text',
+        url: 'url',
+        files: [
+          { name: 'contact', accept: ['text/vcard', 'text/x-vcard', 'text/directory', '.vcf'] },
+        ],
+      },
+    },
   }
 
   return new Response(JSON.stringify(manifest, null, 2), {

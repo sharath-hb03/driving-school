@@ -23,7 +23,23 @@ export default defineConfig({
           { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
-        ]
+        ],
+        // Puts the app in Android's share sheet: sharing a contact from the
+        // phonebook opens Add Lead prefilled. Keep in sync with the branded
+        // copy in functions/api/manifest.js.
+        share_target: {
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+            files: [
+              { name: 'contact', accept: ['text/vcard', 'text/x-vcard', 'text/directory', '.vcf'] }
+            ]
+          }
+        }
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],

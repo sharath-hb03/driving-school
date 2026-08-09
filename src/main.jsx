@@ -5,9 +5,13 @@ import { Toaster } from 'react-hot-toast'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { AuthProvider } from './context/AuthContext'
+import { captureSharedContact } from './lib/shareTarget'
 import './index.css'
 
 registerSW({ immediate: true })
+
+// Before the router runs — a sign-in redirect must not discard a shared contact.
+captureSharedContact()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

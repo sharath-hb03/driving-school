@@ -7,6 +7,7 @@ import { Spinner } from '../components/ui'
 import { api } from '../lib/api'
 import SchoolLogo from '../components/SchoolLogo'
 import InstallButton from '../components/InstallButton'
+import { hasSharedContact } from '../lib/shareTarget'
 
 export default function Login() {
   const { login } = useAuth()
@@ -52,7 +53,11 @@ export default function Login() {
           ? '/super-admin'
           : user.role === 'student' || user.role === 'instructor'
             ? '/portal'
-            : '/'
+            // Signed in only because a shared contact needed it — carry on to
+            // the Leads Hub, which is holding that contact.
+            : hasSharedContact()
+              ? '/enquiries'
+              : '/'
 
       if (user.school_slug) window.location.replace(nextPath)
       else navigate(nextPath, { replace: true })
