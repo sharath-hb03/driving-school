@@ -85,7 +85,9 @@ export default function ClassForm({ open, onClose, onSaved, student, klass, init
         notes: klass.notes || ''
       })
     } else {
-      const base = initialDate ? new Date(`${initialDate}T10:00`) : new Date()
+      const base = initialDate
+        ? (initialDate.includes('T') ? new Date(initialDate) : new Date(`${initialDate}T10:00`))
+        : new Date()
       if (!initialDate) base.setMinutes(0)
       setSlotValues([toInputDateTime(base)])
       setForm({

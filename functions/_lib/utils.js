@@ -57,3 +57,36 @@ export function slugify(name) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 }
+
+// Convert any leads (enquiries) for a school matching the given phone number.
+export async function convertMatchingLeads(db, schoolId, phone) {
+  if (!phone || !schoolId) return 0
+  const cleanDigits = String(phone).replace(/\D/g, '')
+  if (!cleanDigits) return 0
+
+  if (cleanDigits.length >= 7) {
+    const last10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits
+    const res = await db.prepare(`
+      UPDATE enquiries 
+      SET status = 'converted' 
+      WHERE school_id = ? 
+        AND status != 'converted' 
+        AND (
+          phone = ? 
+          OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') = ?
+          OR REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', ''), '(', ''), ')', '') LIKE ?
+        )
+    `).bind(schoolId, String(phone).trim(), cleanDigits, `%${last10}`).run()
+    return res?.meta?.changes || 0
+  } else {
+    const res = await db.prepare(`
+      UPDATE enquiries 
+      SET status = 'converted' 
+      WHERE school_id = ? 
+        AND status != 'converted' 
+        AND phone = ?
+    `).bind(schoolId, String(phone).trim()).run()
+    return res?.meta?.changes || 0
+  }
+}
+

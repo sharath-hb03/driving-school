@@ -1,9 +1,10 @@
 // GET    /api/students/:id
 // PUT    /api/students/:id
 // DELETE /api/students/:id
-import { ok, notFound, badRequest, forbidden, readJson } from '../../_lib/utils.js'
+import { ok, notFound, badRequest, forbidden, readJson, convertMatchingLeads } from '../../_lib/utils.js'
 import { hashPassword } from '../../_lib/auth.js'
 import { sendPush } from '../../_lib/onesignal.js'
+
 
 export async function onRequestGet(context) {
   const { env, params, data } = context
@@ -230,7 +231,12 @@ export async function onRequestPut(context) {
   vals.push(params.id, sid)
   await env.DB.prepare(`UPDATE students SET ${sets.join(',')} WHERE id=? AND school_id=?`).bind(...vals).run()
 
+  if ('phone' in fields && fields.phone) {
+    await convertMatchingLeads(env.DB, sid, fields.phone)
+  }
+
   // Notify student on license date or status changes
+
   const pushifySub = student.pushify_sub
   if (pushifySub && pushifySub !== 'null') {
     try {

@@ -1,6 +1,6 @@
 // GET /api/students?q=&status=&page=&limit=
 // POST /api/students
-import { ok, created, badRequest, readJson, requireFields, id } from '../../_lib/utils.js'
+import { ok, created, badRequest, readJson, requireFields, id, convertMatchingLeads } from '../../_lib/utils.js'
 
 export async function onRequestGet(context) {
   const { env, request, data } = context
@@ -55,13 +55,15 @@ export async function onRequestPost(context) {
   if (missing) return badRequest(missing)
 
   const studentId = id('stu_')
+  const phone = body.phone ? String(body.phone).trim() : null
+
   await env.DB.prepare(`
     INSERT INTO students (id,school_id,name,phone,email,address,license_type,joining_date,package_id,status,notes,discount,opt_for_license)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
   `).bind(
     studentId, sid,
     String(body.name).trim(),
-    body.phone || null, body.email || null, body.address || null,
+    phone, body.email || null, body.address || null,
     body.license_type || '4W',
     body.joining_date || null,
     body.package_id || null,
@@ -71,6 +73,11 @@ export async function onRequestPost(context) {
     body.opt_for_license !== undefined ? (body.opt_for_license ? 1 : 0) : 1
   ).run()
 
+  if (phone) {
+    await convertMatchingLeads(env.DB, sid, phone)
+  }
+
   const student = await env.DB.prepare('SELECT * FROM students WHERE id=?').bind(studentId).first()
   return created({ student })
 }
+
