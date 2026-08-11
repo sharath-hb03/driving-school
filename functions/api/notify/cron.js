@@ -87,24 +87,28 @@ async function handleCron(context) {
   let deferred = 0
   const updates = []
 
-  // ── 1. Class reminders for students ──────────────────────────────────
+  // ── 1. Class reminders for students & instructors (24h & 1h prior) ──
   // pushify_sub is filtered in SQL rather than skipped in JS so unsubscribed
-  // students never reach the grouping pass.
+  // students/instructors never reach the grouping pass.
   const { results: classes } = await env.DB.prepare(`
     SELECT c.id, c.scheduled_at, c.reminded_at,
-           s.name AS student_name, s.pushify_sub AS student_pushify_sub
+           s.name AS student_name, s.pushify_sub AS student_pushify_sub,
+           i.name AS instructor_name, i.pushify_sub AS instructor_pushify_sub
       FROM classes c
       JOIN students s ON s.id = c.student_id
+      LEFT JOIN instructors i ON i.id = c.instructor_id
      WHERE c.status = 'scheduled'
        AND c.scheduled_at >  ?
        AND c.scheduled_at <= ?
-       AND s.pushify_sub IS NOT NULL
-       AND s.pushify_sub <> 'null'
+       AND (
+         (s.pushify_sub IS NOT NULL AND s.pushify_sub <> 'null')
+         OR
+         (i.pushify_sub IS NOT NULL AND i.pushify_sub <> 'null')
+       )
   `).bind(new Date(now).toISOString(), new Date(now + LOOKAHEAD_MS).toISOString()).all()
 
   // One OneSignal notification carries a single body, so recipients are keyed by the
-  // exact text they should receive. Students sharing a class time collapse into one
-  // send — which is why the message can no longer address them by name.
+  // exact text they should receive.
   const groups = new Map()
 
   for (const c of classes || []) {
@@ -122,25 +126,50 @@ async function handleCron(context) {
 
     const timeStr = formatClassTime(new Date(classTime))
     const isTodayClass = new Date(classTime).toDateString() === new Date(now).toDateString()
-    const message = sendType === '1h'
-      ? `You have a driving class scheduled in 1 hour at ${timeStr}.`
-      : `You have a driving class scheduled ${isTodayClass ? 'today' : 'tomorrow'} at ${timeStr}.`
+    const heading = sendType === '1d' ? '24h Class Reminder' : '1h Class Reminder'
 
-    const key = `${sendType}|${message}`
-    let g = groups.get(key)
-    if (!g) {
-      g = { sendType, message, subs: new Set(), classes: [] }
-      groups.set(key, g)
+    // 1a. Student Notification
+    if (c.student_pushify_sub && c.student_pushify_sub !== 'null') {
+      const studentMsg = sendType === '1h'
+        ? `Reminder: You have a driving class scheduled in 1 hour at ${timeStr}.`
+        : `Reminder: You have a driving class scheduled ${isTodayClass ? 'today' : 'tomorrow'} at ${timeStr}.`
+
+      const key = `${heading}|${studentMsg}`
+      let g = groups.get(key)
+      if (!g) {
+        g = { heading, sendType, message: studentMsg, subs: new Set(), classes: [] }
+        groups.set(key, g)
+      }
+      g.subs.add(c.student_pushify_sub)
+      if (!g.classes.some((item) => item.id === c.id)) {
+        g.classes.push({ id: c.id, reminders: [...reminders] })
+      }
     }
-    g.subs.add(c.student_pushify_sub)
-    g.classes.push({ id: c.id, reminders })
+
+    // 1b. Instructor Notification
+    if (c.instructor_pushify_sub && c.instructor_pushify_sub !== 'null') {
+      const instructorMsg = sendType === '1h'
+        ? `Reminder: Class with ${c.student_name} is in 1 hour at ${timeStr}.`
+        : `Reminder: Class with ${c.student_name} is scheduled ${isTodayClass ? 'today' : 'tomorrow'} at ${timeStr}.`
+
+      const key = `${heading}|${instructorMsg}`
+      let g = groups.get(key)
+      if (!g) {
+        g = { heading, sendType, message: instructorMsg, subs: new Set(), classes: [] }
+        groups.set(key, g)
+      }
+      g.subs.add(c.instructor_pushify_sub)
+      if (!g.classes.some((item) => item.id === c.id)) {
+        g.classes.push({ id: c.id, reminders: [...reminders] })
+      }
+    }
   }
 
   for (const g of groups.values()) {
     if (sends >= MAX_SENDS) { deferred += g.classes.length; continue }
 
     const pushRes = await sendPush(env, {
-      heading: 'Class Reminder',
+      heading: g.heading,
       message: g.message,
       subscriptionIds: [...g.subs]
     })
@@ -148,8 +177,11 @@ async function handleCron(context) {
 
     if (pushRes.sent) {
       for (const c of g.classes) {
-        const next = [...c.reminders, g.sendType].join(',')
-        updates.push(env.DB.prepare('UPDATE classes SET reminded_at = ? WHERE id = ?').bind(next, c.id))
+        if (!c.reminders.includes(g.sendType)) {
+          c.reminders.push(g.sendType)
+          const next = c.reminders.join(',')
+          updates.push(env.DB.prepare('UPDATE classes SET reminded_at = ? WHERE id = ?').bind(next, c.id))
+        }
       }
       classesNotified += g.classes.length
     }
