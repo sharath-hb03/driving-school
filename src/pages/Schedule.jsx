@@ -305,7 +305,7 @@ export default function Schedule() {
             const { booked, availableCount, freeNamesText } = slotAvailability[hour] || { booked: [], availableCount: 0, freeNamesText: '' }
 
             return (
-              <div key={hour} className="flex items-start gap-3 border-b border-slate-100 pb-3.5 last:border-b-0 last:pb-0">
+              <div key={hour} className="flex items-start gap-3 border-b border-slate-300 pb-3.5 last:border-b-0 last:pb-0">
                 {/* Hour Label */}
                 <div className="flex w-14 shrink-0 flex-col items-center pt-2.5 select-none">
                   <span className={`text-sm font-bold ${booked.length > 0 ? 'text-brand-600' : 'text-slate-400'}`}>
